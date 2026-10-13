@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Minha conta — MOCI — CAT Sertão</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#14204A">
+<link rel="icon" type="image/png" href="CAT-SERTAO-SEM-FUNDO.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-exige-login>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="top-logo"><img src="CAT-SERTAO-SEM-FUNDO.png" alt="Brasão do CAT Sertão"></div>
+    <div style="min-width:0;">
+      <div class="top-org">CAT Sertão · CBMPE</div>
+      <h1 class="top-title">Minha conta</h1>
+      <div class="top-sub">Mapa de Ocupações Contra Incêndio (MOCI)</div>
+    </div>
+    <div class="top-actions" id="area-usuario"></div>
+  </div>
+</header>
+
+<main class="pagina-main" style="max-width:560px;">
+  <a class="listar-back" href="index.html">← Voltar ao mapa</a>
+  <p id="carregando" class="q-hint">Verificando acesso...</p>
+
+  <div id="conteudo" class="u-hidden">
+    <section class="painel">
+      <h2>Seus dados</h2>
+      <p>Usuário: <b id="info-login"></b></p>
+      <p style="margin-top:4px;">Perfil: <b id="info-perfil"></b></p>
+    </section>
+
+    <section class="painel">
+      <h2>Trocar senha</h2>
+      <form id="form-senha" style="display:flex; flex-direction:column; gap:12px;">
+        <label class="field">Senha atual
+          <input id="senha-atual" type="password" autocomplete="current-password">
+        </label>
+        <label class="field">Nova senha
+          <input id="senha-nova" type="password" autocomplete="new-password" placeholder="mínimo 6 caracteres">
+        </label>
+        <label class="field">Repita a nova senha
+          <input id="senha-repetida" type="password" autocomplete="new-password">
+        </label>
+        <p id="msg-senha" class="u-hidden" role="status"></p>
+        <div class="form-acoes" style="margin-top:0;"><button type="submit" class="btn-red" id="btn-trocar">Trocar senha</button></div>
+      </form>
+      <p class="q-hint" style="margin-top:10px;">Ao trocar a senha, as sessões abertas em outros aparelhos são encerradas. Neste aparelho você continua conectado.</p>
+    </section>
+  </div>
+</main>
+
+<footer class="bottom">
+  <div class="bottom-inner">
+    <img src="CAT-SERTAO-SEM-FUNDO.png" alt="">
+    <div class="bottom-text"><strong>MOCI</strong> — desenvolvido pelo CAT Sertão – Centro de Atividades Técnicas do Sertão</div>
+  </div>
+</footer>
+
+<script src="auth.js"></script>
+<script>
+(function () {
+  'use strict';
+  var A = window.MociAuth;
+  var msg = document.getElementById('msg-senha');
+  function mensagem(texto, ok) { msg.textContent = texto; msg.className = ok ? 'msg-ok' : 'field-error'; }
+
+  document.getElementById('form-senha').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var atual = document.getElementById('senha-atual').value;
+    var nova = document.getElementById('senha-nova').value;
+    var repetida = document.getElementById('senha-repetida').value;
+    if (!atual || !nova) { mensagem('Preencha a senha atual e a nova.', false); return; }
+    if (nova.length < 6) { mensagem('A nova senha deve ter pelo menos 6 caracteres.', false); return; }
+    if (nova !== repetida) { mensagem('A nova senha e a repetição não são iguais.', false); return; }
+    var btn = document.getElementById('btn-trocar');
+    btn.disabled = true;
+    var s = A.getSession();
+    A.api({ action: 'alterarSenha', token: s.token, senhaAtual: atual, senhaNova: nova }).then(function (res) {
+      if (!res.ok) throw new Error(res.error || 'Não foi possível trocar a senha.');
+      A.setSession({ token: res.token, login: s.login, perfil: s.perfil });   // token novo deste aparelho
+      document.getElementById('form-senha').reset();
+      mensagem('Senha trocada. As sessões em outros aparelhos foram encerradas.', true);
+    }).catch(function (err) {
+      mensagem(err.message, false);
+    }).then(function () { btn.disabled = false; });
+  });
+
+  A.exigirPagina(null, function (s) {
+    document.getElementById('info-login').textContent = s.login;
+    document.getElementById('info-perfil').textContent = A.NOME_PERFIL[s.perfil] || s.perfil;
+    document.getElementById('carregando').classList.add('u-hidden');
+    document.getElementById('conteudo').classList.remove('u-hidden');
+  });
+})();
+</script>
+</body>
+</html>

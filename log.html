@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LOG de auditoria — MOCI — CAT Sertão</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#14204A">
+<link rel="icon" type="image/png" href="CAT-SERTAO-SEM-FUNDO.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-exige-login>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="top-logo"><img src="CAT-SERTAO-SEM-FUNDO.png" alt="Brasão do CAT Sertão"></div>
+    <div style="min-width:0;">
+      <div class="top-org">CAT Sertão · CBMPE</div>
+      <h1 class="top-title">LOG de auditoria</h1>
+      <div class="top-sub">Mapa de Ocupações Contra Incêndio (MOCI)</div>
+    </div>
+    <div class="top-actions" id="area-usuario"></div>
+  </div>
+</header>
+
+<main class="pagina-main">
+  <a class="listar-back" href="index.html">← Voltar ao mapa</a>
+  <p id="carregando" class="q-hint">Verificando acesso...</p>
+  <div id="negado" class="field-error u-hidden"></div>
+
+  <div id="conteudo" class="u-hidden">
+    <section class="painel">
+      <h2>Filtros</h2>
+      <form id="form-filtro">
+        <div class="form-linha">
+          <label class="field">Ação
+            <select id="f-acao">
+              <option value="">Todas</option>
+              <option value="login">Entrou</option>
+              <option value="login_falho">Tentativa de entrada falhou</option>
+              <option value="logout">Saiu</option>
+              <option value="cadastro_rti">Cadastrou ocupação</option>
+              <option value="edicao_rti">Editou ocupação</option>
+              <option value="exclusao_rti">Excluiu ocupação</option>
+              <option value="criacao_usuario">Criou usuário</option>
+              <option value="desativacao_usuario">Desativou usuário</option>
+              <option value="reativacao_usuario">Reativou usuário</option>
+              <option value="exclusao_usuario">Excluiu usuário</option>
+              <option value="alteracao_senha">Trocou a senha</option>
+              <option value="setup_inicial">Instalação</option>
+              <option value="migracao">Migração</option>
+              <option value="erro_backend">Erro no servidor</option>
+            </select>
+          </label>
+          <label class="field">Busca (usuário ou detalhe)
+            <input id="f-busca" type="text" placeholder="ex.: fulano">
+          </label>
+          <label class="field">De
+            <input id="f-inicio" type="date">
+          </label>
+          <label class="field">Até
+            <input id="f-fim" type="date">
+          </label>
+        </div>
+        <div class="form-acoes"><button type="submit" class="btn-red">Filtrar</button><button type="button" class="btn-outline-navy" id="btn-limpar" style="margin:0;">Limpar</button></div>
+      </form>
+    </section>
+
+    <section class="painel">
+      <p id="msg" class="u-hidden" role="status" style="margin-bottom:10px;"></p>
+      <div class="table-wrap">
+        <table class="rti-table" id="tabela-log">
+          <thead><tr><th>Data/hora</th><th>Usuário</th><th>Perfil</th><th>Ação</th><th>Detalhe</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="paginacao">
+        <label class="grupo">Por página
+          <select id="f-limite"><option>10</option><option>50</option><option>100</option></select>
+        </label>
+        <div class="grupo">
+          <button type="button" class="btn-acao" id="btn-anterior">Anterior</button>
+          <span id="pagina-info">—</span>
+          <button type="button" class="btn-acao" id="btn-proxima">Próxima</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="bottom">
+  <div class="bottom-inner">
+    <img src="CAT-SERTAO-SEM-FUNDO.png" alt="">
+    <div class="bottom-text"><strong>MOCI</strong> — desenvolvido pelo CAT Sertão – Centro de Atividades Técnicas do Sertão</div>
+  </div>
+</footer>
+
+<script src="auth.js"></script>
+<script>
+(function () {
+  'use strict';
+  var A = window.MociAuth, esc = A.escapar;
+  var pagina = 1, total = 0;
+  var tbody = document.querySelector('#tabela-log tbody'), msg = document.getElementById('msg');
+  var NOME_ACAO = {};
+  Array.prototype.forEach.call(document.querySelectorAll('#f-acao option'), function (o) { if (o.value) NOME_ACAO[o.value] = o.textContent; });
+
+  function filtros() {
+    var ini = document.getElementById('f-inicio').value, fim = document.getElementById('f-fim').value;
+    return {
+      acao: document.getElementById('f-acao').value,
+      busca: document.getElementById('f-busca').value.trim(),
+      // datas no fuso de Pernambuco; "Até" inclui o dia inteiro
+      dataInicio: ini ? ini + 'T00:00:00-03:00' : '',
+      dataFim: fim ? fim + 'T23:59:59-03:00' : '',
+      limite: Number(document.getElementById('f-limite').value)
+    };
+  }
+
+  function carregar() {
+    var f = filtros();
+    tbody.innerHTML = '<tr><td colspan="5">Carregando...</td></tr>';
+    msg.className = 'u-hidden';
+    A.api(Object.assign({ action: 'listarLog', token: A.getSession().token, pagina: pagina }, f)).then(function (res) {
+      if (!res.ok) throw new Error(res.error || 'Não foi possível carregar o LOG.');
+      total = res.total || 0;
+      var paginas = Math.max(1, Math.ceil(total / res.limite));
+      document.getElementById('pagina-info').textContent = 'Página ' + res.pagina + ' de ' + paginas + ' · ' + total + ' registro(s)';
+      document.getElementById('btn-anterior').disabled = res.pagina <= 1;
+      document.getElementById('btn-proxima').disabled = res.pagina >= paginas;
+      if (!res.log.length) { tbody.innerHTML = '<tr><td colspan="5">Nenhum registro.</td></tr>'; return; }
+      tbody.innerHTML = res.log.map(function (r) {
+        var d = new Date(r.timestamp);
+        return '<tr><td>' + (isNaN(d.getTime()) ? esc(r.timestamp) : d.toLocaleString('pt-BR')) + '</td>' +
+          '<td>' + esc(r.login || '—') + '</td><td>' + esc(A.NOME_PERFIL[r.perfil] || r.perfil || '—') + '</td>' +
+          '<td>' + esc(NOME_ACAO[r.acao] || r.acao) + '</td><td class="td-detalhe">' + esc(r.detalhe || '') + '</td></tr>';
+      }).join('');
+    }).catch(function (err) {
+      tbody.innerHTML = '';
+      msg.textContent = err.message;
+      msg.className = 'field-error';
+    });
+  }
+
+  document.getElementById('form-filtro').addEventListener('submit', function (e) { e.preventDefault(); pagina = 1; carregar(); });
+  document.getElementById('btn-limpar').addEventListener('click', function () { document.getElementById('form-filtro').reset(); pagina = 1; carregar(); });
+  document.getElementById('f-limite').addEventListener('change', function () { pagina = 1; carregar(); });
+  document.getElementById('btn-anterior').addEventListener('click', function () { if (pagina > 1) { pagina--; carregar(); } });
+  document.getElementById('btn-proxima').addEventListener('click', function () { pagina++; carregar(); });
+
+  A.exigirPagina(['admin_master'], function () {
+    document.getElementById('carregando').classList.add('u-hidden');
+    document.getElementById('conteudo').classList.remove('u-hidden');
+    carregar();
+  }, function () {
+    document.getElementById('carregando').classList.add('u-hidden');
+    var n = document.getElementById('negado');
+    n.textContent = 'Somente o administrador geral consulta o LOG de auditoria.';
+    n.classList.remove('u-hidden');
+  });
+})();
+</script>
+</body>
+</html>

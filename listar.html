@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listar ocupações — MOCI — CAT Sertão</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#14204A">
+<link rel="icon" type="image/png" href="CAT-SERTAO-SEM-FUNDO.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="top-logo"><img src="CAT-SERTAO-SEM-FUNDO.png" alt="Brasão do CAT Sertão"></div>
+    <div style="min-width:0;">
+      <div class="top-org">CAT Sertão · CBMPE</div>
+      <h1 class="top-title">Listar ocupações</h1>
+      <div class="top-sub">Mapa de Ocupações Contra Incêndio (MOCI)</div>
+    </div>
+    <div class="top-actions" id="area-usuario"></div>
+  </div>
+</header>
+
+<main class="listar-main">
+  <a class="listar-back" href="index.html" id="link-voltar-mapa">← Voltar ao mapa</a>
+
+  <p id="carregando-msg" class="q-hint">Verificando sessão...</p>
+
+  <div id="negado-box" class="field-error u-hidden" style="margin-bottom:16px;"></div>
+
+  <div id="listar-conteudo" class="u-hidden">
+
+    <div class="listar-filtros">
+      <div class="listar-filtros-grid">
+        <label class="field" for="filtro-endereco">Endereço
+          <input id="filtro-endereco" type="text" placeholder="Ex: Av. Cardoso de Sá">
+        </label>
+        <label class="field" for="filtro-nome">Nome da edificação
+          <input id="filtro-nome" type="text" placeholder="Ex: Edifício Central">
+        </label>
+        <label class="field" for="filtro-regularidade">Regularidade
+          <select id="filtro-regularidade">
+            <option value="todos">Todos</option>
+            <option value="regular">Regular (AVCB válido)</option>
+            <option value="irregular">Irregular (vencido ou sem AVCB)</option>
+          </select>
+        </label>
+      </div>
+      <div class="listar-loc-status">
+        <span id="loc-status-texto">📍 Obtendo sua localização para calcular a distância...</span>
+        <button id="btn-atualizar-loc" type="button" class="btn-outline-navy" style="margin:0;">Atualizar localização</button>
+        <button id="btn-exportar-excel" type="button" class="btn-outline-navy" style="margin:0 0 0 auto;">⬇️ Exportar Excel</button>
+      </div>
+    </div>
+
+    <p id="listar-resumo" class="listar-resumo"></p>
+
+    <div class="table-wrap">
+      <table id="tabela-oci" class="rti-table u-hidden"></table>
+    </div>
+
+    <button id="btn-mostrar-mais" type="button" class="btn-outline-navy btn-mostrar-mais u-hidden">Mostrar mais</button>
+  </div>
+</main>
+
+<footer class="bottom">
+  <div class="bottom-inner">
+    <img src="CAT-SERTAO-SEM-FUNDO.png" alt="">
+    <div class="bottom-text">
+      <strong>Site em desenvolvimento</strong> — desenvolvido pelo CAT Sertão – Centro de Atividades Técnicas do Sertão
+    </div>
+  </div>
+</footer>
+
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="auth.js"></script>
+<script src="app.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var LIMITE_INICIAL = 5;
+  var INCREMENTO_MOSTRAR_MAIS = 10;
+
+  // Seções de Bombeiros (OME) do CBMPE na área do CAT Sertão. Endereços
+  // conferidos em bombeiros.pe.gov.br/index.php/fale-conosco-bombeiros/quarteis
+  // (28/07/2026) e coordenadas geocodificadas via Nominatim/OpenStreetMap a
+  // partir desse mesmo endereço — em ruas "s/nº" ou "Km X de rodovia" o pino
+  // é aproximado (fica no trecho da via, não no prédio exato), suficiente
+  // para a distância aproximada mostrada aqui.
+  var OMES = [
+    { cidade: 'Arcoverde', nome: 'Arcoverde — 9º GB (sede/1ª SB)', lat: -8.407645, lng: -37.111007 },
+    { cidade: 'Pesqueira', nome: 'Pesqueira — 9º GB 2ª SB', lat: -8.369472, lng: -36.669558 },
+    // Custódia: não aparece no site oficial do CBMPE — endereço confirmado
+    // pelo usuário (antigo Terminal Rodoviário): Av. Inocêncio Lima, s/n,
+    // Centro, Custódia-PE, CEP 56640-000.
+    { cidade: 'Custódia', nome: 'Custódia — 9º GB 3ª SB', lat: -8.092649, lng: -37.632505 },
+    { cidade: 'Salgueiro', nome: 'Salgueiro — 5º GB (sede/1ª SB)', lat: -8.080761, lng: -39.129753 },
+    { cidade: 'São José do Belmonte', nome: 'São José do Belmonte — 5º GB 2ª SB', lat: -7.863402, lng: -38.765801 },
+    { cidade: 'Araripina', nome: 'Araripina — 5º GB 3ª SB', lat: -7.586274, lng: -40.504895 },
+    { cidade: 'Ouricuri', nome: 'Ouricuri — 5º GB 4ª SB', lat: -7.881320, lng: -40.082702 },
+    { cidade: 'Petrolina', nome: 'Petrolina — 4º GB (sede/1ª SB)', lat: -9.390334, lng: -40.510325 },
+    { cidade: 'Santa Maria da Boa Vista', nome: 'Santa Maria da Boa Vista — 4º GB 2ª SB', lat: -8.769837, lng: -39.763344 },
+    { cidade: 'Serra Talhada', nome: 'Serra Talhada — 3º GB (sede/1ª SB)', lat: -7.987167, lng: -38.311566 },
+    { cidade: 'Afogados da Ingazeira', nome: 'Afogados da Ingazeira — 3º GB 2ª SB', lat: -7.708544, lng: -37.605155 },
+    { cidade: 'São José do Egito', nome: 'São José do Egito — 3º GB 3ª SB', lat: -7.472185, lng: -37.274272 },
+    { cidade: 'Petrolândia', nome: 'Petrolândia — 3º GB 4ª SB', lat: -8.987030, lng: -38.221655 }
+  ];
+
+  var todosOsPontos = [];
+  var userLoc = null; // { lat, lng } | null
+  var limiteAtual = LIMITE_INICIAL;
+
+  var elCarregando = document.getElementById('carregando-msg');
+  var elNegado = document.getElementById('negado-box');
+  var elConteudo = document.getElementById('listar-conteudo');
+  var elLocStatus = document.getElementById('loc-status-texto');
+  var elResumo = document.getElementById('listar-resumo');
+  var elTabela = document.getElementById('tabela-oci');
+  var elBtnMais = document.getElementById('btn-mostrar-mais');
+  var elBtnExportar = document.getElementById('btn-exportar-excel');
+  var elFiltroEndereco = document.getElementById('filtro-endereco');
+  var elFiltroNome = document.getElementById('filtro-nome');
+  var elFiltroRegularidade = document.getElementById('filtro-regularidade');
+
+  // listar.html sempre abre numa aba própria (window.open com nome fixo, ver
+  // wireBotaoListar em app.js), então "window.opener" aponta pra aba do mapa
+  // que abriu ela. Navegar o opener e fechar esta aba evita ficar acumulando
+  // abas "Mapa de OCI" a cada ida e volta. Se não houver opener (ex.: usuário
+  // abriu listar.html direto pela URL), cai no comportamento normal de navegar
+  // a própria aba.
+  function irParaMapa(url) {
+    if (window.opener && !window.opener.closed) {
+      window.opener.location.href = url;
+      window.opener.focus();
+      window.close();
+      setTimeout(function () { window.location.href = url; }, 300);
+    } else {
+      window.location.href = url;
+    }
+  }
+
+  function distanciaMetros(lat1, lng1, lat2, lng2) {
+    var R = 6371000; // raio médio da Terra, em metros
+    function toRad(deg) { return deg * Math.PI / 180; }
+    var dLat = toRad(lat2 - lat1);
+    var dLng = toRad(lng2 - lng1);
+    var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  // Recebe a localização de origem (não o OCI da linha): o chefe da
+  // guarnição em deslocamento precisa comparar, a partir de onde ele está
+  // agora, se o ponto de água mais rápido é o OCI da linha ou o quartel
+  // mais próximo — por isso a distância do quartel também é medida a
+  // partir do GPS do dispositivo, e não do OCI.
+  function omeMaisProxima(origem) {
+    if (!origem || !OMES.length) return null;
+    var melhor = null;
+    OMES.forEach(function (ome) {
+      var d = distanciaMetros(origem.lat, origem.lng, ome.lat, ome.lng);
+      if (!melhor || d < melhor.distancia) melhor = { distancia: d, nome: ome.nome, cidade: ome.cidade };
+    });
+    return melhor;
+  }
+
+  function fmtDistancia(metros) {
+    if (metros == null) return '—';
+    return Math.round(metros).toLocaleString('pt-BR') + ' m';
+  }
+
+  function listaHidrantes(p) {
+    var itens = [];
+    if (p.hidrante_fachada === 'SIM') itens.push('Fachada');
+    if (p.hidrante_recalque === 'SIM') itens.push('Recalque');
+    return itens.length ? itens.join(', ') : '—';
+  }
+
+  function obterLocalizacao() {
+    if (!navigator.geolocation) {
+      elLocStatus.textContent = '📍 Este navegador não suporta geolocalização — distância indisponível, ordenando por nome.';
+      userLoc = null;
+      renderizar();
+      return;
+    }
+    elLocStatus.textContent = '📍 Obtendo sua localização para calcular a distância...';
+    navigator.geolocation.getCurrentPosition(
+      function (pos) {
+        userLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        elLocStatus.textContent = '📍 Localização obtida — distâncias calculadas a partir daqui.';
+        renderizar();
+      },
+      function () {
+        userLoc = null;
+        elLocStatus.textContent = '📍 Não foi possível obter sua localização — distância indisponível, ordenando por nome.';
+        renderizar();
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  }
+
+  function passaNoFiltro(p) {
+    var qEndereco = elFiltroEndereco.value.trim().toLowerCase();
+    var qNome = elFiltroNome.value.trim().toLowerCase();
+    var regularidade = elFiltroRegularidade.value;
+
+    if (qEndereco && enderecoDisplay(p).toLowerCase().indexOf(qEndereco) === -1) return false;
+    if (qNome && p.nome.toLowerCase().indexOf(qNome) === -1) return false;
+
+    if (regularidade !== 'todos') {
+      var valido = getAvcbStatus(p).valido;
+      if (regularidade === 'regular' && !valido) return false;
+      if (regularidade === 'irregular' && valido) return false;
+    }
+    return true;
+  }
+
+  function renderTabela(pontos, session) {
+    if (pontos.length === 0) {
+      hide(elTabela);
+      hide(elBtnMais);
+      elResumo.textContent = 'Nenhuma ocupação encontrada para esse filtro.';
+      return;
+    }
+
+    var mostrarEditar = podeEditar(session);
+    var visiveis = pontos.slice(0, limiteAtual);
+    var omeProxima = omeMaisProxima(userLoc);
+
+    var totalTxt = pontos.length === 1 ? '1 ocupação encontrada' : pontos.length + ' ocupações encontradas';
+    var distTxt = userLoc ? ', ordenados do mais próximo ao mais distante da sua localização' : ', ordenados por nome (localização indisponível)';
+    elResumo.textContent = 'Mostrando ' + visiveis.length + ' de ' + totalTxt + distTxt + '.';
+
+    var thead = '<thead><tr>' +
+      '<th>Nome</th><th>Endereço</th><th>Distância</th><th>Dist. Quartel mais próx.</th><th>Quartel</th><th>Capacidade RTI</th><th>Hidrantes</th><th>Sprinklers</th><th>Caldeira</th><th>AVCB</th><th>Cadastrado por</th>' +
+      (mostrarEditar ? '<th></th><th></th>' : '') +
+      '</tr></thead>';
+
+    var tbody = '<tbody>' + visiveis.map(function (p) {
+      var ome = omeProxima;
+      return '<tr>' +
+        '<td class="td-nome" title="' + escapeHtml(p.nome) + '">' + escapeHtml(p.nome) + '</td>' +
+        '<td class="td-endereco">' + escapeHtml(enderecoDisplay(p)) + '</td>' +
+        '<td class="td-distancia">' + fmtDistancia(p._distancia) + '</td>' +
+        '<td class="td-distancia" title="' + (ome ? escapeHtml(ome.nome) : '') + '">' + fmtDistancia(ome && ome.distancia) + '</td>' +
+        '<td>' + (ome ? 'Quartel ' + escapeHtml(ome.cidade) : '—') + '</td>' +
+        '<td class="td-distancia">' + fmtNumberBR(p.capacidade_litros, 0) + ' L</td>' +
+        '<td>' + escapeHtml(listaHidrantes(p)) + '</td>' +
+        '<td>' + (p.possui_sprinkler === 'SIM' ? 'Sim' : 'Não') + '</td>' +
+        '<td>' + (p.possui_caldeira === 'SIM' ? 'Sim' : 'Não') + '</td>' +
+        '<td>' + escapeHtml(getAvcbStatus(p).label) + '</td>' +
+        '<td class="td-cadastrado" title="' + escapeHtml(p.cadastrado_por || '—') + '">' + escapeHtml(p.cadastrado_por || '—') + '</td>' +
+        (mostrarEditar ? '<td><button type="button" class="btn-outline-navy btn-sm btn-editar" data-id="' + escapeHtml(p.id) + '">Editar</button></td>' : '') +
+        (mostrarEditar ? '<td><button type="button" class="btn-outline-navy btn-sm btn-excluir" data-id="' + escapeHtml(p.id) + '" data-nome="' + escapeHtml(p.nome) + '">Excluir</button></td>' : '') +
+        '</tr>';
+    }).join('') + '</tbody>';
+
+    elTabela.innerHTML = thead + tbody;
+    show(elTabela);
+
+    if (mostrarEditar) {
+      elTabela.querySelectorAll('.btn-editar').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          irParaMapa('index.html?editar=' + encodeURIComponent(btn.dataset.id));
+        });
+      });
+      elTabela.querySelectorAll('.btn-excluir').forEach(function (btn) {
+        btn.addEventListener('click', function () { excluirOci(btn.dataset.id, btn.dataset.nome); });
+      });
+    }
+
+    if (pontos.length > limiteAtual) {
+      var proximoLimite = Math.min(limiteAtual + INCREMENTO_MOSTRAR_MAIS, pontos.length);
+      elBtnMais.textContent = 'Mostrar mais (até ' + proximoLimite + ')';
+      show(elBtnMais);
+    } else {
+      hide(elBtnMais);
+    }
+  }
+
+  function excluirOci(id, nome) {
+    var session = getSession();
+    if (!session || !podeEditar(session)) return;
+    if (!window.confirm('Excluir "' + nome + '"? Essa ação não pode ser desfeita.')) return;
+
+    excluirPoint(id, session.token).then(function (res) {
+      todosOsPontos = todosOsPontos.filter(function (p) { return p.id !== id; });
+      renderizar();
+      if (res && res.jaExcluido) {
+        window.alert('"' + nome + '" já havia sido excluído. A lista foi atualizada.');
+      }
+    }).catch(function (err) {
+      // A exclusão pode ter sido concluída no servidor mesmo com a resposta
+      // se perdendo no caminho (ver lerRespostaJson em app.js). Deixar a tela
+      // como está faz a lista mentir: foi o que aconteceu com o OCI CONDOMINIO
+      // BUONA VITA, que continuou listado depois de já ter sido apagado.
+      // Recarregar do servidor é a única forma de mostrar o estado real.
+      window.alert((err && err.message) || 'Não foi possível excluir agora.');
+      recarregarDoServidor();
+    });
+  }
+
+  // Refaz a consulta e redesenha, sem repetir geolocalização nem mexer na
+  // visibilidade dos blocos — serve para reconciliar a tela depois de uma
+  // operação cujo resultado ficou incerto.
+  function recarregarDoServidor() {
+    var session = getSession();
+    if (!session) return;
+    listarRTIsRemoto(session.token).then(function (res) {
+      if (!res || !res.ok) return;
+      todosOsPontos = (res.points || []).map(normalizePoint);
+      renderizar();
+    }).catch(function () { /* a mensagem do erro original já foi exibida */ });
+  }
+
+  // Exporta TODOS os pontos cadastrados (não só os filtrados/visíveis na
+  // tela) com os dados completos — diferente da tabela, que só mostra as
+  // colunas resumidas.
+  function exportarExcel() {
+    if (!window.XLSX) {
+      window.alert('Biblioteca de exportação não carregou. Verifique sua conexão e tente novamente.');
+      return;
+    }
+
+    var linhas = todosOsPontos.slice().sort(function (a, b) {
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    }).map(function (p) {
+      var avcb = getAvcbStatus(p);
+      return {
+        'Nome': p.nome,
+        'Endereço': enderecoDisplay(p),
+        'Rua': p.rua || '',
+        'Número': p.numero || '',
+        'Bairro': p.bairro || '',
+        'Cidade': p.cidade || '',
+        'Latitude': p.lat,
+        'Longitude': p.lng,
+        'Capacidade RTI (L)': p.capacidade_litros,
+        'Hidrante de fachada': p.hidrante_fachada === 'SIM' ? 'Sim' : 'Não',
+        'Hidrante de recalque': p.hidrante_recalque === 'SIM' ? 'Sim' : 'Não',
+        'Possui sprinklers': p.possui_sprinkler === 'SIM' ? 'Sim' : 'Não',
+        'Possui caldeira': p.possui_caldeira === 'SIM' ? 'Sim' : 'Não',
+        'Possui AVCB': p.possui_avcb === 'SIM' ? 'Sim' : 'Não',
+        'Validade do AVCB': p.data_validade_avcb ? fmtDateBR(p.data_validade_avcb) : '',
+        'Situação do AVCB': avcb.label,
+        'Pavimentos': p.quantidade_pavimentos != null ? p.quantidade_pavimentos : '',
+        'Área construída (m²)': p.area_construida != null ? p.area_construida : '',
+        'Altura da edificação (m)': p.altura_edificacao != null ? p.altura_edificacao : '',
+        'Cadastrado por': p.cadastrado_por || '',
+        'Data de cadastro': p.timestamp ? new Date(p.timestamp).toLocaleString('pt-BR') : '',
+        'ID': p.id
+      };
+    });
+
+    var ws = XLSX.utils.json_to_sheet(linhas);
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'MOCI');
+    var dataHoje = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, 'moci-cat-sertao-' + dataHoje + '.xlsx');
+  }
+
+  function renderizar() {
+    var session = getSession();
+
+    var filtrados = todosOsPontos.filter(passaNoFiltro).map(function (p) {
+      p._distancia = userLoc ? distanciaMetros(userLoc.lat, userLoc.lng, p.lat, p.lng) : null;
+      return p;
+    });
+
+    if (userLoc) {
+      filtrados.sort(function (a, b) { return a._distancia - b._distancia; });
+    } else {
+      filtrados.sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+    }
+
+    renderTabela(filtrados, session);
+  }
+
+  elBtnMais.addEventListener('click', function () {
+    limiteAtual += INCREMENTO_MOSTRAR_MAIS;
+    renderizar();
+  });
+  [elFiltroEndereco, elFiltroNome].forEach(function (el) {
+    el.addEventListener('input', function () { limiteAtual = LIMITE_INICIAL; renderizar(); });
+  });
+  elFiltroRegularidade.addEventListener('change', function () { limiteAtual = LIMITE_INICIAL; renderizar(); });
+  document.getElementById('btn-atualizar-loc').addEventListener('click', obterLocalizacao);
+  elBtnExportar.addEventListener('click', exportarExcel);
+  document.getElementById('link-voltar-mapa').addEventListener('click', function (e) {
+    e.preventDefault();
+    irParaMapa('index.html');
+  });
+
+  function mostrarNegado(mensagem) {
+    hide(elCarregando);
+    elNegado.textContent = mensagem;
+    show(elNegado);
+  }
+
+  function iniciar() {
+    var session = getSession();
+    if (!session) {
+      // Abre a janela de login do MOCI aqui mesmo e, ao entrar, carrega a lista.
+      elCarregando.textContent = 'Entre com seu usuário para ver a lista de ocupações.';
+      pedirLogin(function () { elCarregando.textContent = 'Carregando...'; iniciar(); });
+      return;
+    }
+    if (!podeVisualizarLista(session)) {
+      mostrarNegado('Sua conta não tem acesso à lista de ocupações.');
+      return;
+    }
+
+    listarRTIsRemoto(session.token).then(function (res) {
+      hide(elCarregando);
+      if (!res.ok) {
+        mostrarNegado(res.error || 'Não foi possível carregar a lista agora.');
+        return;
+      }
+      todosOsPontos = (res.points || []).map(normalizePoint);
+      show(elConteudo);
+      renderizar();
+      obterLocalizacao();
+    }).catch(function () {
+      mostrarNegado('Não foi possível conectar ao servidor agora.');
+    });
+  }
+
+  iniciar();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,312 @@
+:root{
+  --navy:#14204A; --navy-2:#1B2A5B; --red:#C1121F; --red-hover:#97121A; --gold:#E8B302;
+  --ink:#1C1B19; --muted:#57554F; --muted-2:#6B6A66; --muted-3:#8C8A83;
+  --border:#E5E0D5; --border-2:#D8D1C3; --field-bg:#FBFAF7;
+  --chip-bg:#F4F1EA; --chip-border:#E6E0D4;
+  --warn-bg:#FBF3D6; --warn-border:#F0DFA0; --warn-text:#7a5f00; --note-text:#8a6a00;
+  --green:#1E8E4E; --green-hover:#177a41; --green-dot:#7DE6A5;
+}
+*{ margin:0; padding:0; box-sizing:border-box; }
+.u-hidden{ display:none !important; }
+html, body{ height:100%; }
+body{
+  font-family:'Public Sans', sans-serif; color:var(--ink); background:#FBFAF8;
+  min-height:100vh;
+  /* iOS Safari: 100vh ignora a barra inferior do navegador, que fica por
+     cima do fim do mapa (botões ← e 📍) e do rodapé -- só apareciam
+     depois de rolar a página, quando a barra recolhia (N1 da auditoria).
+     dvh acompanha a barra recolhendo/expandindo. Duas declarações, nessa
+     ordem: navegador sem suporte a dvh usa a de cima e ignora esta. */
+  min-height:100dvh;
+  display:flex; flex-direction:column; overflow-x:hidden;
+}
+h1,h2,h3{ font-family:'Oswald', sans-serif; }
+img{ display:block; max-width:100%; }
+
+/* ===== Header ===== */
+header.top{ background:var(--navy); color:#fff; padding:12px 16px; flex:0 0 auto; }
+.top-inner{ display:flex; align-items:center; gap:14px; max-width:1180px; margin:0 auto; }
+.top-logo{ width:52px; height:52px; background:#fff; border-radius:10px; display:flex; align-items:center; justify-content:center; flex:0 0 auto; box-shadow:0 2px 8px rgba(0,0,0,.25); }
+.top-logo img{ width:42px; height:42px; object-fit:contain; }
+.top-org{ font-family:'Oswald', sans-serif; font-weight:600; font-size:10.5px; letter-spacing:.16em; color:var(--gold); text-transform:uppercase; }
+.top-title{ font-weight:700; font-size:clamp(15px,4vw,20px); line-height:1.15; margin:2px 0 0; text-transform:uppercase; letter-spacing:.01em; }
+.top-sub{ font-family:'Oswald', sans-serif; font-weight:500; font-size:11px; letter-spacing:.1em; color:#cfd4e6; margin-top:2px; text-transform:uppercase; }
+
+/* ===== Aviso de localização ===== */
+.banner-warn{ background:var(--warn-bg); border-bottom:1px solid var(--warn-border); color:var(--warn-text); flex:0 0 auto; }
+.banner-warn-inner{ padding:7px 16px; font-size:12px; line-height:1.4; display:flex; gap:8px; align-items:center; max-width:1180px; margin:0 auto; }
+.banner-warn .sq{ width:7px; height:7px; border-radius:2px; background:var(--red); flex:0 0 auto; }
+
+/* ===== Mapa (ocupa a maior parte da viewport) ===== */
+main.map-area{ position:relative; flex:1 1 auto; min-height:0; width:100%; }
+#map{ position:absolute; inset:0; width:100%; height:100%; background:#e5e0d5; }
+
+/* Botões flutuantes "Cadastrar OCI" + "Listar OCI" */
+/* pointer-events:none na linha (reativado nos botões) -- a div fica mais
+   larga que o conteúdo visível (largura total no mobile, coluna sem largura
+   fixa no desktop); sem isso, o espaço vazio ao redor dos botões tapava o
+   toque nos controles do Leaflet e nos botões de canto (locate/voltar). */
+/* Ficam no TOPO do mapa (empilhados na horizontal) no mobile e na LATERAL
+   direita (empilhados na vertical, centralizados) no desktop -- no fundo da
+   tela colidiam com .btn-locate/.btn-back-main (cantos inferiores) e com o
+   controle de atribuição do Leaflet. */
+.fab-row{
+  /* z-index:1001 -- acima dos controles nativos do Leaflet (.leaflet-top/
+     .leaflet-bottom usam z-index:1000), senao em telas estreitas a faixa
+     de botoes fica atras do controle de atribuicao/zoom do mapa e o toque
+     nao chega nos botoes "Listar OCI"/"Cadastrar OCI". */
+  position:absolute; z-index:1001;
+  display:flex; align-items:center; gap:10px; pointer-events:none;
+  top:14px; left:50%; right:auto; bottom:auto; transform:translateX(-50%);
+  width:calc(100% - 24px); justify-content:center; flex-wrap:wrap;
+}
+@media (min-width: 641px){
+  /* transform:translateY(-50%) removido (O1 da auditoria): um ancestral com
+     transform vira bloco de contenção de descendentes position:fixed -- era
+     por isso que o .btn-back-main (fixed) se posicionava pela .fab-row e caía
+     em cima do "Cadastrar OCI". A centralização vertical passa a vir de
+     top:0/bottom:0 + justify-content:center, sem transform. A linha é
+     pointer-events:none (os botões reativam), então ocupar a altura toda do
+     mapa não bloqueia clique no mapa. */
+  .fab-row{
+    top:0; bottom:0; left:auto; right:20px; transform:none;
+    flex-direction:column; align-items:flex-end; justify-content:center;
+    width:auto; flex-wrap:nowrap;
+  }
+}
+.btn-fab{
+  font-family:'Oswald', sans-serif; font-weight:600; font-size:14px; letter-spacing:.05em;
+  text-transform:uppercase; color:#fff; background:var(--red); border:none;
+  padding:14px 26px; border-radius:999px; cursor:pointer; box-shadow:0 10px 26px -10px rgba(0,0,0,.5);
+  display:flex; align-items:center; gap:8px; white-space:nowrap; pointer-events:auto;
+}
+.btn-fab:hover{ background:var(--red-hover); }
+.btn-fab:active{ transform:scale(.97); }
+.btn-fab-outline{ background:#fff; color:var(--navy); border:1.5px solid var(--navy); box-shadow:0 10px 26px -12px rgba(0,0,0,.4); }
+.btn-fab-outline:hover{ background:var(--navy); color:#fff; }
+
+/* Botão "Atualizar localização" (canto) */
+.btn-locate{
+  position:absolute; right:12px; bottom:18px; z-index:1001; width:44px; height:44px;
+  background:#fff; border:1px solid var(--border-2); border-radius:50%; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; box-shadow:0 8px 20px -10px rgba(0,0,0,.4);
+  font-size:18px; color:var(--navy);
+}
+.btn-locate:hover{ border-color:var(--red); color:var(--red); }
+
+/* Botão "Voltar ao site principal" -- no mobile fica dentro da .fab-row
+   (topo do mapa), ao lado de Listar/Cadastrar: no canto inferior esquerdo
+   ele ficava debaixo da barra do Safari no iPhone (N1 da auditoria) e só
+   aparecia depois de rolar a página. No desktop a .fab-row vira uma
+   coluna à direita, então ele volta pro canto inferior esquerdo (N2). */
+@media (min-width: 641px){
+  /* fixed pela viewport. ATENÇÃO: só funciona porque a .fab-row deixou de ter
+     transform (ver O1 acima) -- ancestral com transform é bloco de contenção de
+     fixed. bottom:64px, não 18px: o rodapé navy ocupa os ~46px de baixo da
+     viewport e o botão ficava por cima dele. */
+}
+
+/* ===== Popup do marcador (Leaflet) ===== */
+.rti-popup{ font-family:'Public Sans', sans-serif; font-size:13px; line-height:1.5; color:var(--ink); min-width:200px; }
+.rti-popup strong{ font-family:'Oswald', sans-serif; font-size:14px; text-transform:uppercase; letter-spacing:.01em; display:block; margin-bottom:4px; color:var(--navy); }
+.rti-popup .row{ display:flex; gap:6px; margin-top:3px; }
+.rti-popup .label{ color:var(--muted-3); flex:0 0 auto; }
+.rti-popup .chips{ display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; }
+.rti-popup .chip{ font-size:11px; font-weight:600; padding:3px 8px; border-radius:5px; background:var(--chip-bg); border:1px solid var(--chip-border); color:var(--muted); }
+.rti-popup .chip.yes{ background:#E9F7EF; border-color:#BFE8D2; color:var(--green-hover); }
+
+/* ===== Modal de cadastro ===== */
+.modal-overlay{
+  position:fixed; inset:0; background:rgba(20,32,74,.55); z-index:1000;
+  display:flex; align-items:flex-end; justify-content:center;
+}
+.modal-card{
+  width:100%; max-width:480px; max-height:92vh; overflow-y:auto;
+  background:#fff; border-radius:18px 18px 0 0; box-shadow:0 -20px 60px -20px rgba(0,0,0,.5);
+  padding:22px 20px calc(20px + env(safe-area-inset-bottom));
+  display:flex; flex-direction:column; gap:16px;
+}
+@media (min-width: 640px){
+  .modal-overlay{ align-items:center; }
+  .modal-card{ border-radius:18px; max-height:90vh; }
+}
+.modal-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.modal-head h2{ font-size:19px; text-transform:uppercase; letter-spacing:.01em; color:var(--navy); }
+.modal-close{ background:none; border:none; font-size:22px; line-height:1; color:var(--muted-3); cursor:pointer; padding:4px; }
+.modal-close:hover{ color:var(--red); }
+
+.field{ display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; letter-spacing:.04em; color:var(--muted); text-transform:uppercase; }
+.field input[type=text], .field input[type=number], .field select{
+  font-family:'Public Sans', sans-serif; font-size:15px; font-weight:400; text-transform:none; letter-spacing:normal;
+  padding:12px 14px; border:1px solid var(--border-2); border-radius:10px; background:var(--field-bg); outline:none; color:var(--ink);
+}
+.field input:focus, .field select:focus{ border-color:var(--red); background:#fff; }
+.field-error{ font-size:12.5px; color:#9c1c1c; background:#FBEAEA; border:1px solid #F0C7C7; padding:9px 11px; border-radius:9px; }
+
+.loc-box{ background:var(--field-bg); border:1px solid var(--border-2); border-radius:12px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
+.loc-box .coords{ font-size:13.5px; color:var(--ink); }
+.loc-box .coords span{ color:var(--muted-3); }
+.btn-outline-navy{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px; font-family:'Oswald', sans-serif; font-weight:600;
+  font-size:12.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--navy); background:#fff;
+  border:1.5px solid var(--navy); padding:9px 14px; border-radius:9px; cursor:pointer; align-self:flex-start;
+}
+.btn-outline-navy:hover{ background:var(--navy); color:#fff; }
+.btn-outline-navy:disabled{ opacity:.6; cursor:not-allowed; }
+.btn-outline-navy:disabled:hover{ background:#fff; color:var(--navy); }
+
+.checkbox-row{ display:flex; align-items:center; gap:10px; font-size:14px; font-weight:500; text-transform:none; letter-spacing:normal; color:var(--ink); }
+.checkbox-row input{ width:18px; height:18px; accent-color:var(--red); }
+
+.btn-red{
+  font-family:'Oswald', sans-serif; font-weight:600; font-size:15px; letter-spacing:.06em; text-transform:uppercase;
+  color:#fff; background:var(--red); border:none; padding:14px; border-radius:10px; cursor:pointer;
+}
+.btn-red:hover{ background:var(--red-hover); }
+.btn-red:disabled{ opacity:.6; cursor:not-allowed; }
+
+/* ===== Localização: abas GPS / manual (admin_master, admin) ===== */
+.loc-tabs{ display:flex; gap:8px; margin-bottom:10px; }
+.loc-tab{
+  flex:1; font-family:'Oswald', sans-serif; font-weight:600; font-size:11.5px; letter-spacing:.03em;
+  text-transform:uppercase; color:var(--muted); background:var(--field-bg); border:1px solid var(--border-2);
+  padding:9px 8px; border-radius:9px; cursor:pointer;
+}
+.loc-tab.active{ background:var(--navy); border-color:var(--navy); color:#fff; }
+
+#mini-map{ width:100%; height:220px; border-radius:12px; overflow:hidden; border:1px solid var(--border-2); }
+.q-hint{ font-size:12px; font-weight:400; text-transform:none; letter-spacing:normal; color:var(--muted-3); margin-bottom:8px; }
+
+/* ===== Campos de endereço ===== */
+.endereco-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.endereco-grid .field:first-child{ grid-column:1 / -1; }
+
+/* ===== Botão pequeno (usado na tabela de listagem) ===== */
+.btn-sm{ padding:6px 12px !important; font-size:11px !important; align-self:auto !important; }
+
+/* ===== Modal de listagem ===== */
+.modal-card-wide{ max-width:760px; }
+.table-wrap{ overflow-x:auto; }
+.rti-table{ width:100%; border-collapse:collapse; font-size:13px; }
+.rti-table th, .rti-table td{ text-align:left; padding:10px 12px; border-bottom:1px solid var(--border); white-space:nowrap; }
+.rti-table th{
+  font-family:'Oswald', sans-serif; font-weight:600; font-size:11px; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--muted); background:var(--field-bg);
+}
+.rti-table tbody tr:hover{ background:var(--field-bg); }
+/* Endereço sempre por extenso (sem reticências) — só quebra linha quando
+   necessário, nunca corta o texto. */
+.rti-table td.td-endereco{ min-width:220px; max-width:360px; white-space:normal; word-break:break-word; }
+.rti-table td.td-nome{ max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rti-table td.td-cadastrado{ max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.rti-table td.td-distancia{ white-space:nowrap; font-variant-numeric:tabular-nums; }
+
+/* Em telas de computador (largura suficiente pra caber a tabela inteira),
+   a janela de listagem cresce pra evitar barra de rolagem horizontal. Em
+   celular, o modal fica limitado pela própria viewport e a rolagem
+   horizontal do .table-wrap continua sendo o comportamento aceitável. */
+@media (min-width: 980px){
+  .modal-card-wide{ max-width:960px; }
+}
+
+/* ===== Rodapé ===== */
+footer.bottom{ background:var(--navy); color:#c8cde0; flex:0 0 auto; }
+.bottom-inner{ padding:10px 16px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; font-size:11.5px; max-width:1180px; margin:0 auto; }
+.bottom-inner img{ width:26px; height:26px; object-fit:contain; background:#fff; border-radius:6px; padding:2px; }
+.bottom-text{ line-height:1.4; }
+.bottom-text strong{ color:#fff; font-weight:600; }
+.badge-test{
+  margin-left:auto; font-family:'Oswald', sans-serif; font-weight:600; font-size:10px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--warn-text); background:var(--gold); padding:4px 9px; border-radius:999px;
+}
+
+@media (max-width: 480px){
+  .btn-fab{ font-size:12.5px; padding:11px 16px; }
+  .btn-locate{ width:40px; height:40px; bottom:14px; right:10px; }
+  /* bottom/left removidos (N2 da auditoria): .btn-back-main é position:static
+     nesta largura (vive dentro da .fab-row), então essas duas propriedades
+     não tinham efeito nenhum -- só o tamanho continua valendo. */
+}
+
+/* ===== Página de listagem com filtro (listar.html) ===== */
+.listar-main{ flex:1; width:100%; max-width:1100px; margin:0 auto; padding:18px 16px 40px; }
+.listar-filtros{
+  background:#fff; border:1px solid var(--border); border-radius:14px; padding:16px;
+  margin-bottom:16px; display:flex; flex-direction:column; gap:12px;
+  box-shadow:0 6px 20px -16px rgba(20,32,74,.5);
+}
+.listar-filtros-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+.listar-loc-status{ font-size:12.5px; color:var(--muted-3); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.listar-resumo{ font-size:13px; color:var(--muted); margin:2px 0 10px; }
+.btn-mostrar-mais{ display:block; margin:18px auto 4px; }
+.listar-back{
+  display:inline-flex; align-items:center; gap:6px; font-family:'Oswald', sans-serif; font-weight:600;
+  font-size:12.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted); text-decoration:none; margin-bottom:14px;
+}
+.listar-back:hover{ color:var(--red); }
+
+/* =====================================================================
+   Login próprio do MOCI (auth.js): área do usuário no topo, janela de
+   login e páginas de administração (Usuários, Minha conta, LOG).
+   ===================================================================== */
+.top-actions{ margin-left:auto; flex:0 0 auto; position:relative; }
+.btn-topo{ font-family:'Public Sans',sans-serif; font-weight:600; font-size:12.5px; letter-spacing:.03em; color:#fff; background:transparent; border:1px solid rgba(255,255,255,.35); padding:0 16px; min-height:40px; border-radius:999px; cursor:pointer; }
+.btn-topo:hover{ background:rgba(255,255,255,.14); }
+.menu-usuario{ position:relative; }
+.menu-usuario > summary{ list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px; background:rgba(255,255,255,.10); border:1px solid rgba(255,255,255,.22); padding:0 14px; min-height:40px; border-radius:999px; font-size:12px; font-weight:600; color:#fff; max-width:62vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.menu-usuario > summary::-webkit-details-marker{ display:none; }
+.menu-usuario > summary::after{ content:"▾"; margin-left:2px; opacity:.8; }
+.menu-usuario .dot{ width:8px; height:8px; border-radius:50%; background:#3FBF6A; box-shadow:0 0 0 3px rgba(63,191,106,.25); flex:none; }
+.menu-usuario-lista{ position:absolute; right:0; top:calc(100% + 6px); z-index:1300; background:#fff; border:1px solid var(--border); border-radius:12px; box-shadow:0 18px 40px -18px rgba(20,32,74,.55); min-width:210px; padding:6px; display:flex; flex-direction:column; }
+.menu-usuario-lista a, .menu-usuario-lista button{ display:block; text-align:left; padding:11px 12px; border-radius:8px; color:var(--navy); text-decoration:none; font-size:14px; font-weight:600; background:none; border:none; cursor:pointer; font-family:inherit; }
+.menu-usuario-lista a:hover, .menu-usuario-lista button:hover{ background:var(--chip-bg); }
+.menu-usuario-lista button{ color:var(--red); border-top:1px solid var(--border); margin-top:4px; border-radius:0 0 8px 8px; }
+
+/* Janela de login: acima de tudo, inclusive do modal de cadastro (z 1000). */
+.login-overlay{ position:fixed; inset:0; z-index:1400; display:flex; align-items:center; align-items:safe center; justify-content:center; padding:20px; overflow-y:auto; background:radial-gradient(120% 120% at 50% 0%, rgba(28,44,98,.92) 0%, rgba(20,32,74,.94) 55%, rgba(14,22,54,.96) 100%); }
+.login-card{ width:100%; max-width:390px; background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 30px 70px -30px rgba(0,0,0,.6); }
+.login-head{ position:relative; background:var(--navy); padding:26px 24px 22px; text-align:center; }
+.login-fechar{ position:absolute; top:8px; right:8px; width:44px; height:44px; border:none; background:none; color:#cfd4e6; font-size:26px; line-height:1; cursor:pointer; border-radius:10px; }
+.login-fechar:hover{ color:#fff; background:rgba(255,255,255,.1); }
+.login-logo{ width:78px; height:78px; margin:0 auto 12px; background:#fff; border-radius:14px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(0,0,0,.25); }
+.login-logo img{ width:62px; height:62px; object-fit:contain; }
+.login-org{ font-family:'Oswald',sans-serif; font-weight:600; font-size:11px; letter-spacing:.2em; color:var(--gold); text-transform:uppercase; }
+.login-titulo{ font-family:'Oswald',sans-serif; font-weight:700; font-size:26px; color:#fff; letter-spacing:.04em; margin-top:2px; }
+.login-sub{ font-family:'Oswald',sans-serif; font-weight:500; font-size:11.5px; letter-spacing:.12em; color:#cfd4e6; text-transform:uppercase; }
+.login-form{ padding:22px 24px 24px; display:flex; flex-direction:column; gap:14px; }
+.login-form .field input{ font-family:'Public Sans',sans-serif; font-size:16px; font-weight:400; text-transform:none; letter-spacing:normal; padding:12px 14px; border:1px solid var(--border-2); border-radius:10px; background:var(--field-bg); outline:none; color:var(--ink); }
+.login-form .field input:focus{ border-color:var(--red); background:#fff; }
+.login-hint{ text-align:center; color:var(--muted); font-size:13.5px; line-height:1.5; }
+.login-rodape{ text-align:center; font-size:11.5px; color:var(--muted-3); line-height:1.45; }
+.login-entrar{ display:flex; align-items:center; justify-content:center; gap:10px; width:100%; }
+.login-spinner{ width:16px; height:16px; border-radius:50%; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; animation:login-gira .7s linear infinite; flex:none; }
+@keyframes login-gira{ to{ transform:rotate(360deg); } }
+@media (prefers-reduced-motion: reduce){ .login-spinner{ animation-duration:2.4s; } }
+
+/* Páginas de administração */
+.pagina-main{ flex:1; width:100%; max-width:1000px; margin:0 auto; padding:18px 16px 48px; }
+.painel{ background:#fff; border:1px solid var(--border); border-radius:16px; padding:18px; box-shadow:0 10px 30px -22px rgba(20,32,74,.45); margin-bottom:18px; }
+.painel h2{ font-family:'Oswald',sans-serif; font-size:17px; font-weight:700; color:var(--navy); text-transform:uppercase; letter-spacing:.02em; margin-bottom:12px; }
+.painel .field input, .painel .field select{ font-family:'Public Sans',sans-serif; font-size:16px; font-weight:400; text-transform:none; letter-spacing:normal; padding:11px 13px; border:1px solid var(--border-2); border-radius:10px; background:var(--field-bg); outline:none; color:var(--ink); width:100%; }
+.painel .field input:focus, .painel .field select:focus{ border-color:var(--red); background:#fff; }
+.form-linha{ display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:12px; align-items:end; }
+.form-acoes{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+.form-acoes .btn-red{ padding:12px 22px; }
+.msg-ok{ font-size:12.5px; color:var(--green-hover); background:#E9F7EF; border:1px solid #BFE8D2; padding:9px 11px; border-radius:9px; }
+.status-pill{ font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:999px; text-transform:uppercase; letter-spacing:.04em; }
+.status-pill.ativo{ background:#E9F7EF; color:var(--green-hover); }
+.status-pill.inativo{ background:var(--chip-bg); color:var(--muted-2); }
+.btn-acao{ font-family:'Public Sans',sans-serif; font-weight:600; font-size:12.5px; padding:0 12px; min-height:36px; border-radius:8px; cursor:pointer; background:#fff; border:1px solid var(--border-2); color:var(--muted); }
+.btn-acao:hover{ border-color:var(--navy); color:var(--navy); }
+.btn-acao.perigo{ color:#9c1c1c; border-color:#F0C7C7; background:#FBEAEA; }
+.acoes-celula{ display:flex; gap:6px; flex-wrap:wrap; }
+.paginacao{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:12px; font-size:13px; color:var(--muted-2); }
+.paginacao .grupo{ display:flex; align-items:center; gap:8px; }
+.paginacao select{ font-size:14px; padding:6px 8px; border:1px solid var(--border-2); border-radius:8px; background:#fff; }
+.rti-table td.td-detalhe{ white-space:normal; min-width:220px; word-break:break-word; }
+@media (max-width: 640px){
+  .top-inner{ flex-wrap:wrap; }
+  .top-actions{ margin-left:0; flex-basis:100%; }
+  .menu-usuario > summary{ max-width:100%; }
+  .menu-usuario-lista{ left:0; right:auto; }
+}

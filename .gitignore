@@ -1,0 +1,5 @@
+node_modules/
+.DS_Store
+Thumbs.db
+# arquivo temporario da migracao (contem a URL da base anterior e o hash do usuario de teste)
+apps-script/Migracao.gs

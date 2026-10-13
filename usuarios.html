@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Usuários — MOCI — CAT Sertão</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#14204A">
+<link rel="icon" type="image/png" href="CAT-SERTAO-SEM-FUNDO.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-exige-login>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="top-logo"><img src="CAT-SERTAO-SEM-FUNDO.png" alt="Brasão do CAT Sertão"></div>
+    <div style="min-width:0;">
+      <div class="top-org">CAT Sertão · CBMPE</div>
+      <h1 class="top-title">Usuários</h1>
+      <div class="top-sub">Mapa de Ocupações Contra Incêndio (MOCI)</div>
+    </div>
+    <div class="top-actions" id="area-usuario"></div>
+  </div>
+</header>
+
+<main class="pagina-main">
+  <a class="listar-back" href="index.html">← Voltar ao mapa</a>
+  <p id="carregando" class="q-hint">Verificando acesso...</p>
+  <div id="negado" class="field-error u-hidden"></div>
+
+  <div id="conteudo" class="u-hidden">
+    <section class="painel">
+      <h2>Novo usuário</h2>
+      <form id="form-novo" autocomplete="off">
+        <div class="form-linha">
+          <label class="field">Usuário (login)
+            <input id="novo-login" type="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="ex.: fulano.silva">
+          </label>
+          <label class="field">Senha inicial
+            <input id="novo-senha" type="password" autocomplete="new-password" placeholder="mínimo 6 caracteres">
+          </label>
+          <label class="field">Perfil
+            <select id="novo-perfil"></select>
+          </label>
+        </div>
+        <div class="form-acoes"><button type="submit" class="btn-red" id="btn-criar">Criar usuário</button></div>
+        <p id="msg-novo" class="u-hidden" role="status" style="margin-top:10px;"></p>
+      </form>
+      <p class="q-hint" style="margin-top:10px;">A pessoa entra com essa senha e pode trocá-la em "Minha conta". Perfis: <b>Vistoriador</b> cadastra e lista; <b>Consulta</b> só lista; <b>Administrador</b> também edita, exclui e gerencia vistoriadores e consultas.</p>
+    </section>
+
+    <section class="painel">
+      <h2>Usuários cadastrados</h2>
+      <p id="msg-lista" class="u-hidden" role="status" style="margin-bottom:10px;"></p>
+      <div class="table-wrap">
+        <table class="rti-table" id="tabela-usuarios">
+          <thead><tr><th>Usuário</th><th>Perfil</th><th>Situação</th><th>Criado por</th><th>Criado em</th><th>Ações</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="bottom">
+  <div class="bottom-inner">
+    <img src="CAT-SERTAO-SEM-FUNDO.png" alt="">
+    <div class="bottom-text"><strong>MOCI</strong> — desenvolvido pelo CAT Sertão – Centro de Atividades Técnicas do Sertão</div>
+  </div>
+</footer>
+
+<script src="auth.js"></script>
+<script>
+(function () {
+  'use strict';
+  var A = window.MociAuth, esc = A.escapar;
+  var elCarregando = document.getElementById('carregando'), elNegado = document.getElementById('negado'), elConteudo = document.getElementById('conteudo');
+  var tbody = document.querySelector('#tabela-usuarios tbody');
+  var msgNovo = document.getElementById('msg-novo'), msgLista = document.getElementById('msg-lista');
+
+  function mensagem(el, texto, ok) {
+    el.textContent = texto;
+    el.className = ok ? 'msg-ok' : 'field-error';
+  }
+  function dataBR(v) {
+    var d = new Date(v);
+    return isNaN(d.getTime()) ? esc(v || '') : d.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  }
+
+  function carregar() {
+    var s = A.getSession();
+    tbody.innerHTML = '<tr><td colspan="6">Carregando...</td></tr>';
+    A.api({ action: 'listarUsuarios', token: s.token }).then(function (res) {
+      if (!res.ok) throw new Error(res.error || 'Não foi possível carregar os usuários.');
+      var lista = (res.usuarios || []).slice().sort(function (a, b) { return String(a.login).localeCompare(String(b.login)); });
+      if (!lista.length) { tbody.innerHTML = '<tr><td colspan="6">Nenhum usuário.</td></tr>'; return; }
+      tbody.innerHTML = lista.map(function (u) {
+        var proprio = u.login === s.login;
+        var podeMexer = !proprio && (s.perfil === 'admin_master' || u.perfil === 'user1' || u.perfil === 'user2');
+        var acoes = '';
+        if (podeMexer) {
+          acoes = u.ativo
+            ? '<button type="button" class="btn-acao" data-acao="desativarUsuario" data-login="' + esc(u.login) + '">Desativar</button>'
+            : '<button type="button" class="btn-acao" data-acao="reativarUsuario" data-login="' + esc(u.login) + '">Reativar</button>' +
+              '<button type="button" class="btn-acao perigo" data-acao="excluirUsuario" data-login="' + esc(u.login) + '">Excluir</button>';
+        }
+        return '<tr><td><b>' + esc(u.login) + '</b>' + (proprio ? ' (você)' : '') + '</td>' +
+          '<td>' + esc(A.NOME_PERFIL[u.perfil] || u.perfil) + '</td>' +
+          '<td><span class="status-pill ' + (u.ativo ? 'ativo' : 'inativo') + '">' + (u.ativo ? 'Ativo' : 'Inativo') + '</span></td>' +
+          '<td>' + esc(u.criado_por || '') + '</td><td>' + dataBR(u.criado_em) + '</td>' +
+          '<td><div class="acoes-celula">' + acoes + '</div></td></tr>';
+      }).join('');
+    }).catch(function (err) {
+      tbody.innerHTML = '';
+      mensagem(msgLista, err.message || 'Não foi possível carregar os usuários.', false);
+    });
+  }
+
+  tbody.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-acao]');
+    if (!b) return;
+    var acao = b.getAttribute('data-acao'), login = b.getAttribute('data-login');
+    var pergunta = { desativarUsuario: 'Desativar "' + login + '"? A pessoa deixa de conseguir entrar e as sessões abertas são encerradas.',
+      reativarUsuario: 'Reativar "' + login + '"?',
+      excluirUsuario: 'Excluir "' + login + '" definitivamente? Isso não pode ser desfeito.' }[acao];
+    if (!window.confirm(pergunta)) return;
+    b.disabled = true;
+    A.api({ action: acao, token: A.getSession().token, login: login }).then(function (res) {
+      if (!res.ok) throw new Error(res.error || 'Não foi possível concluir.');
+      mensagem(msgLista, 'Feito: ' + b.textContent.toLowerCase() + ' "' + login + '".', true);
+      carregar();
+    }).catch(function (err) {
+      mensagem(msgLista, err.message, false);
+      b.disabled = false;
+    });
+  });
+
+  document.getElementById('form-novo').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var login = document.getElementById('novo-login').value.trim().toLowerCase();
+    var senha = document.getElementById('novo-senha').value;
+    var perfil = document.getElementById('novo-perfil').value;
+    if (!login || !senha) { mensagem(msgNovo, 'Preencha usuário e senha.', false); return; }
+    if (senha.length < 6) { mensagem(msgNovo, 'A senha deve ter pelo menos 6 caracteres.', false); return; }
+    var btn = document.getElementById('btn-criar');
+    btn.disabled = true;
+    A.api({ action: 'criarUsuario', token: A.getSession().token, login: login, senha: senha, perfil: perfil }).then(function (res) {
+      if (!res.ok) throw new Error(res.error || 'Não foi possível criar o usuário.');
+      mensagem(msgNovo, 'Usuário "' + login + '" criado como ' + (A.NOME_PERFIL[perfil] || perfil) + '.', true);
+      document.getElementById('form-novo').reset();
+      carregar();
+    }).catch(function (err) {
+      mensagem(msgNovo, err.message, false);
+    }).then(function () { btn.disabled = false; });
+  });
+
+  A.exigirPagina(['admin_master', 'admin'], function (s) {
+    var perfis = s.perfil === 'admin_master' ? ['user1', 'user2', 'admin', 'admin_master'] : ['user1', 'user2'];
+    document.getElementById('novo-perfil').innerHTML = perfis.map(function (p) {
+      return '<option value="' + p + '">' + A.NOME_PERFIL[p] + '</option>';
+    }).join('');
+    elCarregando.classList.add('u-hidden');
+    elConteudo.classList.remove('u-hidden');
+    carregar();
+  }, function () {
+    elCarregando.classList.add('u-hidden');
+    elNegado.textContent = 'Somente administradores gerenciam usuários.';
+    elNegado.classList.remove('u-hidden');
+  });
+})();
+</script>
+</body>
+</html>

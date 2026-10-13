@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<!-- maximum-scale=1 removido (N4 da auditoria): bloqueava o zoom por pinça
+     na TELA INTEIRA (formulário de cadastro, listagem), não só no mapa --
+     falha de WCAG 1.4.4 pra quem tem baixa visão. O zoom por pinça do
+     Leaflet no mapa é independente (touchZoom próprio, via JS, dentro do
+     próprio elemento do mapa) e continua funcionando sem essa trava. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MOCI — Mapa de Ocupações Contra Incêndio — CAT Sertão</title>
+<meta name="description" content="Mapa de Ocupações Contra Incêndio (MOCI) — reserva técnica de incêndio (RTI), hidrantes, AVCB e caldeira — CAT Sertão, Corpo de Bombeiros Militar de Pernambuco.">
+<meta name="theme-color" content="#14204A">
+<link rel="icon" type="image/png" href="CAT-SERTAO-SEM-FUNDO.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="top-logo"><img src="CAT-SERTAO-SEM-FUNDO.png" alt="Brasão do CAT Sertão"></div>
+    <div style="min-width:0;">
+      <div class="top-org">CAT Sertão · CBMPE</div>
+      <h1 class="top-title">MOCI</h1>
+      <div class="top-sub">Mapa de Ocupações Contra Incêndio</div>
+    </div>
+    <div class="top-actions" id="area-usuario"></div>
+  </div>
+</header>
+
+<div id="geo-warning" class="banner-warn u-hidden">
+  <div class="banner-warn-inner">
+    <span class="sq"></span>
+    <span>Não foi possível obter sua localização automaticamente. O mapa foi centralizado em Petrolina-PE.</span>
+  </div>
+</div>
+
+<main class="map-area">
+  <div id="map"></div>
+
+  <button id="btn-locate" class="btn-locate" type="button" title="Centralizar na minha localização">📍</button>
+
+  <div class="fab-row">
+    <button id="btn-listar" class="btn-fab btn-fab-outline" type="button">📋 Listar ocupações</button>
+    <button id="btn-cadastrar" class="btn-fab u-hidden" type="button">+ Cadastrar ocupação</button>
+  </div>
+</main>
+
+<footer class="bottom">
+  <div class="bottom-inner">
+    <img src="CAT-SERTAO-SEM-FUNDO.png" alt="">
+    <div class="bottom-text">
+      <strong>Site em desenvolvimento</strong> — desenvolvido pelo CAT Sertão – Centro de Atividades Técnicas do Sertão
+    </div>
+    <span id="badge-test" class="badge-test u-hidden">Modo teste</span>
+  </div>
+</footer>
+
+<!-- ===== Modal de cadastro / edição ===== -->
+<div id="modal-overlay" class="modal-overlay u-hidden">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="modal-titulo">Cadastrar ocupação</h2>
+      <button id="modal-close" class="modal-close" type="button" aria-label="Fechar">&times;</button>
+    </div>
+
+    <form id="rti-form" style="display:flex; flex-direction:column; gap:16px;">
+
+      <div class="field" id="bloco-localizacao">
+        <div id="loc-modo-tabs" class="loc-tabs u-hidden">
+          <button type="button" class="loc-tab active" data-modo="gps">📍 Minha localização (GPS)</button>
+          <button type="button" class="loc-tab" data-modo="manual">🗺️ Marcar no mapa</button>
+        </div>
+
+        <div id="loc-gps-box">
+          <div class="loc-box">
+            <div class="coords"><span>Lat:</span> <span id="loc-lat">—</span> &nbsp; <span>Long:</span> <span id="loc-lng">—</span></div>
+            <button id="btn-atualizar-loc" class="btn-outline-navy" type="button">Atualizar localização</button>
+          </div>
+        </div>
+
+        <div id="loc-manual-box" class="u-hidden">
+          <p class="q-hint">Toque no mapa para marcar o ponto exato da ocupação. Você pode arrastar o marcador para ajustar.</p>
+          <div id="mini-map"></div>
+          <div class="loc-box" style="margin-top:8px;">
+            <div class="coords"><span>Lat:</span> <span id="loc-lat-manual">—</span> &nbsp; <span>Long:</span> <span id="loc-lng-manual">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <label class="field" for="input-nome">Nome do edifício ou empresa
+        <input id="input-nome" type="text" placeholder="Ex: Edifício Central" required>
+      </label>
+
+      <div class="field">
+        Endereço
+        <div class="endereco-grid">
+          <label class="field" for="input-rua">Rua/Avenida
+            <input id="input-rua" type="text" placeholder="Ex: Av. Cardoso de Sá">
+          </label>
+          <label class="field" for="input-numero">Número
+            <input id="input-numero" type="text" placeholder='Ex: 123 ou "NI"'>
+          </label>
+          <label class="field" for="input-bairro">Bairro
+            <input id="input-bairro" type="text" placeholder="Ex: Centro">
+          </label>
+          <label class="field" for="input-cidade">Cidade
+            <input id="input-cidade" type="text" placeholder="Ex: Petrolina">
+          </label>
+        </div>
+      </div>
+
+      <label class="field" for="input-capacidade">Capacidade da RTI (litros)
+        <input id="input-capacidade" type="number" min="0" step="1" placeholder="Ex: 20000" required>
+      </label>
+
+      <div class="field">
+        Hidrantes
+        <label class="checkbox-row"><input id="check-fachada" type="checkbox"> Hidrante de fachada (parede)</label>
+        <label class="checkbox-row"><input id="check-recalque" type="checkbox"> Hidrante de recalque (calçada)</label>
+      </div>
+
+      <div class="field">
+        Sprinklers
+        <label class="checkbox-row"><input id="check-sprinkler" type="checkbox"> Possui sprinklers</label>
+      </div>
+
+      <div class="field">
+        Caldeira
+        <label class="checkbox-row"><input id="check-caldeira" type="checkbox"> Possui caldeira</label>
+      </div>
+
+      <div class="field">
+        AVCB
+        <label class="checkbox-row"><input id="check-avcb" type="checkbox"> Possui AVCB válido</label>
+        <label id="campo-data-avcb" class="field u-hidden" for="input-data-avcb" style="margin-top:8px;">Data de validade do AVCB
+          <input id="input-data-avcb" type="date">
+        </label>
+      </div>
+
+      <label class="field" for="input-pavimentos">Quantidade de pavimentos da edificação
+        <input id="input-pavimentos" type="number" min="1" step="1" placeholder="Opcional">
+      </label>
+
+      <label class="field" for="input-area">Área construída total (m²)
+        <input id="input-area" type="number" min="0" step="0.01" placeholder="Opcional">
+      </label>
+
+      <label class="field" for="input-altura">Altura da edificação (m)
+        <input id="input-altura" type="number" min="0" step="0.01" placeholder="Opcional">
+      </label>
+
+      <p id="form-error" class="field-error u-hidden"></p>
+
+      <button id="btn-salvar" class="btn-red" type="submit">Salvar cadastro</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="auth.js"></script>
+<script src="app.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', initLeafletMap);
+</script>
+</body>
+</html>
