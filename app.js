@@ -8,6 +8,9 @@ const SHEETS_API_URL = (window.MociAuth && /^https:/.test(MociAuth.API_URL)) ? M
 
 const DEFAULT_CENTER = { lat: -9.3891, lng: -40.5030 }; // Petrolina-PE
 const LOCAL_STORAGE_KEY = 'moci_pontos_modo_teste';
+// Leitura do memorial/AVCB por IA: fluxo "MOCI - Leitura de Documentos" no n8n
+// (a chave da OpenAI fica só lá; o n8n confere o token no MOCI antes de ler).
+const LEITURA_DOCS_URL = 'https://sternplatypus-n8n.cloudfy.live/webhook/moci-leitura-documentos';
 
 const RTI_ALLOWED_PROFILES = ['admin_master', 'admin', 'user1'];
 const RTI_EDIT_PROFILES = ['admin_master', 'admin'];
@@ -18,7 +21,7 @@ const RTI_VIEW_PROFILES = ['admin_master', 'admin', 'user1', 'user2'];
 
 let mapAdapter = null;
 let currentCapture = null; // { lat, lng, rua, numero, bairro, cidade }
-let locMode = 'gps'; // 'gps' | 'manual' — só relevante para admin_master/admin
+let locMode = 'documentos'; // aba do cadastro: 'documentos' | 'gps' | 'mapa' (a edição usa 'mapa')
 let editingId = null; // null = cadastro novo; string = editando essa ocupação
 let miniMap = null;
 let miniMarker = null;
@@ -344,9 +347,11 @@ function postApi(payload) {
 }
 
 let markersById = {};
+let pontosPorId = {}; // pontos já no mapa — usado para avisar de cadastro duplicado (aba Documentos)
 
 function loadPoints() {
   markersById = {};
+  pontosPorId = {};
   if (SHEETS_API_URL) {
     fetch(SHEETS_API_URL)
       .then(lerRespostaJson)
@@ -354,6 +359,7 @@ function loadPoints() {
         (data.points || data || []).forEach(function (raw) {
           const p = normalizePoint(raw);
           markersById[p.id] = mapAdapter.addMarker(p);
+          pontosPorId[p.id] = p;
         });
       })
       .catch(function () { /* mapa continua utilizável mesmo sem pontos */ });
@@ -362,8 +368,61 @@ function loadPoints() {
     getLocalPoints().forEach(function (raw) {
       const p = normalizePoint(raw);
       markersById[p.id] = mapAdapter.addMarker(p);
+      pontosPorId[p.id] = p;
     });
   }
+}
+
+// Distância em metros entre duas coordenadas (fórmula de haversine).
+function distanciaMetros(lat1, lng1, lat2, lng2) {
+  const R = 6371000, rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad, dLng = (lng2 - lng1) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// Ocupação já cadastrada mais próxima, se estiver a menos de `raio` metros.
+function pontoProximo(lat, lng, raio) {
+  let melhor = null;
+  Object.keys(pontosPorId).forEach(function (id) {
+    const p = pontosPorId[id];
+    const d = distanciaMetros(lat, lng, p.lat, p.lng);
+    if (d <= raio && (!melhor || d < melhor.distancia)) melhor = { ponto: p, distancia: d };
+  });
+  return melhor;
+}
+
+// Lê um arquivo do <input type="file"> e devolve só o base64 (sem o "data:...;base64,").
+function lerArquivoBase64(arquivo) {
+  return new Promise(function (resolve, reject) {
+    const fr = new FileReader();
+    fr.onload = function () { resolve(String(fr.result).replace(/^data:[^,]*,/, '')); };
+    fr.onerror = function () { reject(new Error('Não foi possível ler o arquivo "' + arquivo.name + '".')); };
+    fr.readAsDataURL(arquivo);
+  });
+}
+
+// Coordenada digitada em graus decimais com 6 casas. Aceita vírgula decimal
+// ("-9,389123"); sem sinal, aplica o negativo (Pernambuco fica ao sul e a oeste).
+function lerCoordenada(texto, ehLatitude) {
+  let s = String(texto || '').trim().replace(/\s+/g, '');
+  if (!s) return { vazio: true };
+  if (/^-?\d+,\d+$/.test(s)) s = s.replace(',', '.');
+  const m = /^(-?)(\d{1,3})\.(\d+)$/.exec(s);
+  if (!m) return { erro: (ehLatitude ? 'Latitude' : 'Longitude') + ' em graus decimais, ex.: ' + (ehLatitude ? '-9.389123' : '-40.503456') + '.' };
+  if (m[3].length < 6) return { erro: (ehLatitude ? 'Latitude' : 'Longitude') + ': digite 6 casas decimais (faltam ' + (6 - m[3].length) + ').' };
+  let v = Math.round(Number(m[2] + '.' + m[3]) * 1e6) / 1e6;
+  const ajustado = !m[1];
+  v = -v;
+  if (ehLatitude ? Math.abs(v) > 90 : Math.abs(v) > 180) return { erro: (ehLatitude ? 'Latitude' : 'Longitude') + ' fora do intervalo válido.' };
+  return { valor: v, ajustado: ajustado };
+}
+
+// Pernambuco continental + Fernando de Noronha (com folga).
+function dentroDePernambuco(lat, lng) {
+  const continente = lat >= -9.6 && lat <= -7.1 && lng >= -41.5 && lng <= -34.7;
+  const noronha = lat >= -4.0 && lat <= -3.7 && lng >= -32.6 && lng <= -32.3;
+  return continente || noronha;
 }
 
 function savePoint(record, token) {
@@ -464,7 +523,6 @@ function wireCadastroModal() {
   const lngEl = document.getElementById('loc-lng');
   const btnSalvar = document.getElementById('btn-salvar');
   const modalTitulo = document.getElementById('modal-titulo');
-  const locTabs = document.getElementById('loc-modo-tabs');
   const locGpsBox = document.getElementById('loc-gps-box');
   const locManualBox = document.getElementById('loc-manual-box');
   const inputRua = document.getElementById('input-rua');
@@ -556,12 +614,67 @@ function wireCadastroModal() {
     placeMiniMarker(lat, lng);
   }
 
-  function trocarModoLocalizacao(modo) {
-    locMode = modo;
-    document.querySelectorAll('.loc-tab').forEach(function (btn) {
-      btn.classList.toggle('active', btn.dataset.modo === modo);
+  // ===================== Abas do cadastro: documentos | gps | mapa =====================
+  const cadAbas = document.getElementById('cad-abas');
+  const painelDocs = document.getElementById('painel-documentos');
+  const locDocBox = document.getElementById('loc-doc-box');
+  const avisosBox = document.getElementById('leitura-avisos');
+  const docMemorial = document.getElementById('doc-memorial');
+  const docAvcb = document.getElementById('doc-avcb');
+  const docLat = document.getElementById('doc-lat');
+  const docLng = document.getElementById('doc-lng');
+  const docMsg = document.getElementById('doc-coord-msg');
+  const docErro = document.getElementById('doc-erro');
+  const btnLerDocs = document.getElementById('btn-ler-docs');
+  const btnCamadaDoc = document.getElementById('btn-camada-doc');
+  let leituraFeita = false;   // aba Documentos: true = formulário preenchido pela leitura, em conferência
+  let coordDoc = null;        // { lat, lng } digitadas e válidas
+  let mapaDoc = null, marcadorDoc = null, camadaRuaDoc = null, camadaSatDoc = null, sateliteDoc = false;
+
+  function rolarModalParaTopo() {
+    const card = overlay.querySelector('.modal-card');
+    if (card) card.scrollTop = 0;
+  }
+
+  function mostrarAvisos(lista) {
+    avisosBox.innerHTML = '';
+    if (!lista || !lista.length) { hide(avisosBox); return; }
+    const titulo = document.createElement('strong');
+    titulo.textContent = lista[0];
+    avisosBox.appendChild(titulo);
+    if (lista.length > 1) {
+      const ul = document.createElement('ul');
+      lista.slice(1).forEach(function (t) { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+      avisosBox.appendChild(ul);
+    }
+    show(avisosBox);
+  }
+
+  function selecionarAba(aba) {
+    locMode = aba;
+    document.querySelectorAll('.cad-aba').forEach(function (b) {
+      const ativa = b.dataset.aba === aba;
+      b.classList.toggle('active', ativa);
+      b.setAttribute('aria-selected', ativa ? 'true' : 'false');
     });
-    if (modo === 'gps') {
+    hide(formError);
+    if (aba === 'documentos') {
+      hide(locGpsBox);
+      hide(locManualBox);
+      if (leituraFeita) {
+        hide(painelDocs); show(form); show(locDocBox);
+      } else {
+        show(painelDocs); hide(form); hide(locDocBox);
+        iniciarMapaDoc();
+      }
+      rolarModalParaTopo();
+      return;
+    }
+    hide(painelDocs);
+    hide(locDocBox);
+    mostrarAvisos([]);
+    show(form);
+    if (aba === 'gps') {
       hide(locManualBox);
       show(locGpsBox);
       captureGps();
@@ -571,9 +684,223 @@ function wireCadastroModal() {
       const centro = currentCapture || DEFAULT_CENTER;
       initMiniMap(centro.lat, centro.lng);
     }
+    rolarModalParaTopo();
   }
-  document.querySelectorAll('.loc-tab').forEach(function (btn) {
-    btn.addEventListener('click', function () { trocarModoLocalizacao(btn.dataset.modo); });
+
+  // Volta tudo ao estado de "cadastro novo" (arquivos, coordenadas e formulário).
+  function limparCadastro() {
+    form.reset();
+    hide(campoDataAvcb);
+    leituraFeita = false;
+    currentCapture = null;
+    coordDoc = null;
+    docMemorial.value = '';
+    docAvcb.value = '';
+    docLat.value = '';
+    docLng.value = '';
+    hide(docMsg);
+    hide(docErro);
+    mostrarAvisos([]);
+    if (marcadorDoc && mapaDoc) { mapaDoc.removeLayer(marcadorDoc); marcadorDoc = null; }
+  }
+
+  document.querySelectorAll('.cad-aba').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      if (btn.dataset.aba === locMode) return;
+      if ((formTemDadosPreenchidos() || leituraFeita) &&
+          !window.confirm('Trocar de aba descarta o que já foi preenchido neste cadastro. Continuar?')) return;
+      limparCadastro();
+      selecionarAba(btn.dataset.aba);
+    });
+  });
+
+  // ----- Mini-mapa da aba Documentos (com camada de satélite) -----
+  function iniciarMapaDoc() {
+    if (!mapaDoc) {
+      mapaDoc = L.map('mini-map-doc', { zoomControl: true }).setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 12);
+      camadaRuaDoc = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(mapaDoc);
+      camadaSatDoc = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        // no sertão as imagens vão só até o zoom 17; acima disso amplia o 17
+        maxZoom: 19, maxNativeZoom: 17, attribution: 'Imagens &copy; Esri, Maxar, Earthstar Geographics'
+      });
+    }
+    setTimeout(function () { mapaDoc.invalidateSize(); }, 50);
+  }
+
+  btnCamadaDoc.addEventListener('click', function () {
+    if (!mapaDoc) return;
+    sateliteDoc = !sateliteDoc;
+    if (sateliteDoc) { mapaDoc.removeLayer(camadaRuaDoc); camadaSatDoc.addTo(mapaDoc); }
+    else { mapaDoc.removeLayer(camadaSatDoc); camadaRuaDoc.addTo(mapaDoc); }
+    btnCamadaDoc.textContent = sateliteDoc ? '🗺️ Mapa' : '🛰️ Satélite';
+  });
+
+  function mensagemCoord(tipo, textos, acao) {
+    docMsg.innerHTML = '';
+    docMsg.className = 'coord-msg ' + tipo;
+    textos.forEach(function (t) { const p = document.createElement('div'); p.textContent = t; docMsg.appendChild(p); });
+    if (acao) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn-outline-navy'; b.textContent = acao.rotulo;
+      b.addEventListener('click', acao.fn);
+      docMsg.appendChild(b);
+    }
+    show(docMsg);
+  }
+
+  // Valida as duas coordenadas digitadas e atualiza o mini-mapa.
+  function validarCoordenadasDoc() {
+    coordDoc = null;
+    const la = lerCoordenada(docLat.value, true);
+    const lo = lerCoordenada(docLng.value, false);
+    if (la.vazio && lo.vazio) { hide(docMsg); return; }
+    const erros = [la.erro, lo.erro].filter(Boolean);
+    if (la.vazio) erros.push('Digite a latitude.');
+    if (lo.vazio) erros.push('Digite a longitude.');
+    if (erros.length) { mensagemCoord('erro', erros); return; }
+
+    const lat = la.valor, lng = lo.valor;
+    // latitude e longitude invertidas (comum ao copiar de outras fontes)
+    if (!dentroDePernambuco(lat, lng) && dentroDePernambuco(lng, lat)) {
+      mensagemCoord('erro', ['Parece que a latitude e a longitude estão trocadas.'], {
+        rotulo: 'Trocar', fn: function () { const t = docLat.value; docLat.value = docLng.value; docLng.value = t; validarCoordenadasDoc(); }
+      });
+      return;
+    }
+    if (la.ajustado) docLat.value = lat.toFixed(6);
+    if (lo.ajustado) docLng.value = lng.toFixed(6);
+
+    coordDoc = { lat: lat, lng: lng };
+    const avisos = [];
+    if (!dentroDePernambuco(lat, lng)) avisos.push('Este ponto fica fora de Pernambuco. Confira as coordenadas.');
+    const perto = pontoProximo(lat, lng, 30);
+    if (perto) avisos.push('Já existe "' + perto.ponto.nome + '" a ' + Math.round(perto.distancia) + ' m daqui. Confira se não é a mesma edificação.');
+    if (avisos.length) mensagemCoord('alerta', avisos);
+    else mensagemCoord('ok', ['Ponto marcado no mapa: confira se está sobre a edificação (use o modo Satélite).']);
+
+    iniciarMapaDoc();
+    if (marcadorDoc) marcadorDoc.setLatLng([lat, lng]);
+    else marcadorDoc = L.marker([lat, lng]).addTo(mapaDoc);
+    mapaDoc.setView([lat, lng], 18);
+  }
+
+  // Colar "-9.389123, -40.503456" (formato do Google Maps) em qualquer campo preenche os dois.
+  function tratarColagemCoord() {
+    const par = /^\s*(-?\d{1,3}\.\d+)\s*[,;\s]\s*(-?\d{1,3}\.\d+)\s*$/.exec(this.value);
+    if (par) {
+      docLat.value = Number(par[1]).toFixed(6);
+      docLng.value = Number(par[2]).toFixed(6);
+    }
+  }
+  [docLat, docLng].forEach(function (el) {
+    el.addEventListener('input', tratarColagemCoord);
+    el.addEventListener('change', validarCoordenadasDoc);
+    el.addEventListener('blur', validarCoordenadasDoc);
+  });
+
+  function erroDocs(msg) { docErro.textContent = msg; show(docErro); }
+
+  function conferirPdf(arquivo, rotulo) {
+    if (!/\.pdf$/i.test(arquivo.name) && arquivo.type !== 'application/pdf') return 'O ' + rotulo + ' precisa ser um arquivo PDF.';
+    if (arquivo.size > 5 * 1024 * 1024) return 'O ' + rotulo + ' tem mais de 5 MB. Envie um PDF menor.';
+    return '';
+  }
+
+  btnLerDocs.addEventListener('click', function () {
+    hide(docErro);
+    const session = getSession();
+    if (!session) { pedirLogin(); return; }
+    const memorial = docMemorial.files[0];
+    const avcb = docAvcb.files[0];
+    if (!memorial) { erroDocs('Selecione o memorial descritivo (PDF).'); return; }
+    const problema = conferirPdf(memorial, 'memorial descritivo') || (avcb ? conferirPdf(avcb, 'AVCB') : '');
+    if (problema) { erroDocs(problema); return; }
+    validarCoordenadasDoc();
+    if (!coordDoc) { erroDocs('Digite a latitude e a longitude da edificação com 6 casas decimais.'); return; }
+
+    btnLerDocs.disabled = true;
+    btnLerDocs.textContent = 'Lendo os documentos… (pode levar até 1 minuto)';
+    Promise.all([lerArquivoBase64(memorial), avcb ? lerArquivoBase64(avcb) : Promise.resolve(null)])
+      .then(function (b) {
+        const pedido = { token: session.token, memorial: { nome: memorial.name, base64: b[0] } };
+        if (b[1]) pedido.avcb = { nome: avcb.name, base64: b[1] };
+        const corpo = JSON.stringify(pedido);
+        // Uma nova tentativa automática se a conexão cair (instabilidade momentânea da rede).
+        const enviar = function (tentativa) {
+          return fetch(LEITURA_DOCS_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: corpo })
+            .catch(function (err) {
+              if (tentativa >= 2) throw err;
+              return new Promise(function (ok) { setTimeout(ok, 2500); }).then(function () { return enviar(tentativa + 1); });
+            });
+        };
+        return enviar(1).then(function (r) {
+          return r.text().then(function (t) {
+            try { return JSON.parse(t); } catch (e) { throw new Error('O serviço de leitura não respondeu agora (HTTP ' + r.status + '). Tente de novo ou use a aba "Preencher tudo".'); }
+          });
+        });
+      })
+      .then(function (res) {
+        if (!res || !res.ok) throw new Error((res && res.error) || 'Não foi possível ler os documentos.');
+        preencherFormComLeitura(res);
+      })
+      .catch(function (err) {
+        const msg = (err && err.message) || '';
+        erroDocs(/failed to fetch|networkerror|load failed/i.test(msg)
+          ? 'Sem conexão com o serviço de leitura. Verifique a internet e tente de novo, ou use a aba "Preencher tudo".'
+          : (msg || 'Não foi possível ler os documentos agora.'));
+      })
+      .finally(function () { btnLerDocs.disabled = false; btnLerDocs.textContent = 'Ler documentos'; });
+  });
+
+  // Abre o formulário já preenchido com o que foi lido, para o militar conferir e salvar.
+  function preencherFormComLeitura(res) {
+    const d = res.dados || {};
+    form.reset();
+    document.getElementById('input-nome').value = d.nome || '';
+    document.getElementById('input-capacidade').value = d.capacidade_litros !== '' && d.capacidade_litros != null ? d.capacidade_litros : '';
+    document.getElementById('check-fachada').checked = d.hidrante_fachada === 'SIM';
+    document.getElementById('check-recalque').checked = d.hidrante_recalque === 'SIM';
+    document.getElementById('check-sprinkler').checked = d.possui_sprinkler === 'SIM';
+    document.getElementById('check-caldeira').checked = d.possui_caldeira === 'SIM';
+    checkAvcb.checked = d.possui_avcb === 'SIM';
+    toggleCampoDataAvcb();
+    inputDataAvcb.value = d.data_validade_avcb || '';
+    document.getElementById('input-pavimentos').value = d.quantidade_pavimentos !== '' && d.quantidade_pavimentos != null ? d.quantidade_pavimentos : '';
+    document.getElementById('input-area').value = d.area_construida !== '' && d.area_construida != null ? d.area_construida : '';
+    document.getElementById('input-altura').value = d.altura_edificacao !== '' && d.altura_edificacao != null ? d.altura_edificacao : '';
+    preencherEndereco({ rua: d.rua, numero: d.numero, bairro: d.bairro, cidade: d.cidade });
+
+    currentCapture = { lat: coordDoc.lat, lng: coordDoc.lng };
+    document.getElementById('loc-lat-doc').textContent = coordDoc.lat.toFixed(6);
+    document.getElementById('loc-lng-doc').textContent = coordDoc.lng.toFixed(6);
+
+    // Endereço que não veio nos documentos: completa pela coordenada (só os campos vazios).
+    if (!d.rua || !d.numero || !d.bairro || !d.cidade) {
+      const alvo = currentCapture;
+      reverseGeocode(alvo.lat, alvo.lng, function (addr) {
+        if (currentCapture !== alvo) return;
+        if (!inputRua.value) inputRua.value = addr.rua || '';
+        if (!inputBairro.value) inputBairro.value = addr.bairro || '';
+        if (!inputCidade.value) inputCidade.value = addr.cidade || '';
+        if (!inputNumero.value) inputNumero.value = addr.numero || 'NI';
+      });
+    }
+
+    const avisos = (res.avisos || []).slice();
+    if (res.uso && typeof res.uso.restantes_hoje === 'number' && res.uso.restantes_hoje <= 5) {
+      avisos.push('Sua conta ainda pode fazer ' + res.uso.restantes_hoje + ' leitura(s) de documentos hoje.');
+    }
+    mostrarAvisos(['Confira os dados lidos dos documentos e clique em "Salvar cadastro".'].concat(avisos));
+    leituraFeita = true;
+    selecionarAba('documentos');
+  }
+
+  document.getElementById('btn-voltar-docs').addEventListener('click', function () {
+    leituraFeita = false;
+    mostrarAvisos([]);
+    selecionarAba('documentos');
   });
 
   const checkAvcb = document.getElementById('check-avcb');
@@ -622,9 +949,8 @@ function wireCadastroModal() {
       return;
     }
 
-    form.reset();
+    limparCadastro(); // form.reset() + arquivos, coordenadas e avisos da aba Documentos
     hide(formError);
-    hide(campoDataAvcb); // form.reset() não dispara 'change', então esconde manualmente
 
     editingId = pointToEdit ? pointToEdit.id : null;
     modalTitulo.textContent = editingId ? 'Editar ocupação' : 'Cadastrar ocupação';
@@ -632,26 +958,18 @@ function wireCadastroModal() {
 
     show(overlay);
 
-    const mostraTabs = podeEditar(session); // admin_master/admin podem escolher GPS ou manual
-    if (mostraTabs) {
-      show(locTabs);
-    } else {
-      hide(locTabs);
-    }
-
     if (editingId) {
+      // Edição: sem abas, ponto ajustável no mapa (como antes).
+      hide(cadAbas);
       preencherFormParaEdicao(pointToEdit);
-      trocarModoLocalizacao('manual');
-      // trocarModoLocalizacao('manual') reseta o campo de endereço via
-      // reverseGeocode assíncrono; reaplica os valores originais depois.
+      selecionarAba('mapa');
+      // initMiniMap reseta o endereço via reverseGeocode assíncrono;
+      // reaplica os valores originais depois.
       setTimeout(function () { preencherEndereco({ rua: pointToEdit.rua, numero: pointToEdit.numero, bairro: pointToEdit.bairro, cidade: pointToEdit.cidade }); }, 300);
-    } else if (mostraTabs) {
-      trocarModoLocalizacao('gps');
     } else {
-      hide(locTabs);
-      show(locGpsBox);
-      hide(locManualBox);
-      captureGps();
+      // Cadastro novo: as 3 abas, para todos os perfis que cadastram.
+      show(cadAbas);
+      selecionarAba('documentos');
     }
   }
 
@@ -666,6 +984,7 @@ function wireCadastroModal() {
   // fechando e deslocando a tela enquanto o usuário ainda está digitando).
   function formTemDadosPreenchidos() {
     return !!(
+      docMemorial.files.length || docAvcb.files.length || docLat.value.trim() || docLng.value.trim() ||
       document.getElementById('input-nome').value.trim() ||
       document.getElementById('input-capacidade').value ||
       inputRua.value.trim() || inputNumero.value.trim() || inputBairro.value.trim() || inputCidade.value.trim() ||
@@ -711,7 +1030,7 @@ function wireCadastroModal() {
       return;
     }
     if (!currentCapture || typeof currentCapture.lat !== 'number') {
-      formError.textContent = locMode === 'manual'
+      formError.textContent = locMode === 'mapa'
         ? 'Toque no mapa para marcar a localização da ocupação.'
         : 'Não foi possível obter sua localização. Toque em "Atualizar localização" e tente novamente.';
       show(formError);
@@ -788,7 +1107,9 @@ function wireCadastroModal() {
       // Ignorado pelo backend real (Code.gs sempre usa o login da sessão
       // validada no servidor, nunca o que o cliente manda) — só é levado em
       // conta no modo teste (SHEETS_API_URL vazia, sem servidor nenhum).
-      cadastrado_por: session.login
+      cadastrado_por: session.login,
+      // aba usada no cadastro (só vai para o LOG de auditoria no servidor)
+      origem: editingId ? undefined : locMode
     };
 
     btnSalvar.disabled = true;
@@ -805,6 +1126,7 @@ function wireCadastroModal() {
           markersById[editingId].remove();
         }
         markersById[pontoFinal.id] = mapAdapter.addMarker(pontoFinal);
+        pontosPorId[pontoFinal.id] = pontoFinal;
         closeModal();
       })
       .catch(function (err) {

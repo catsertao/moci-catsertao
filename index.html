@@ -68,12 +68,55 @@
       <button id="modal-close" class="modal-close" type="button" aria-label="Fechar">&times;</button>
     </div>
 
+    <!-- Abas do cadastro novo (na edição ficam escondidas) -->
+    <div id="cad-abas" class="cad-abas u-hidden" role="tablist" aria-label="Forma de cadastro">
+      <button type="button" class="cad-aba active" role="tab" data-aba="documentos">📄 Documentos</button>
+      <button type="button" class="cad-aba" role="tab" data-aba="gps">📍 GPS do celular</button>
+      <button type="button" class="cad-aba" role="tab" data-aba="mapa">🗺️ Preencher tudo</button>
+    </div>
+
+    <!-- Aba 1: memorial + AVCB + coordenadas digitadas -->
+    <div id="painel-documentos" class="painel-docs u-hidden">
+      <p class="q-hint">Envie o memorial e o AVCB e digite as coordenadas da edificação. O sistema lê os documentos e preenche o cadastro para você conferir.</p>
+
+      <label class="field doc-arquivo" for="doc-memorial">1. Memorial descritivo (PDF)
+        <input id="doc-memorial" type="file" accept="application/pdf,.pdf">
+      </label>
+      <label class="field doc-arquivo" for="doc-avcb">2. AVCB (PDF) — se a edificação tiver
+        <input id="doc-avcb" type="file" accept="application/pdf,.pdf">
+      </label>
+
+      <div class="field">3. Coordenadas da edificação (graus decimais, 6 casas)
+        <div class="coord-grid">
+          <label class="field" for="doc-lat">Latitude
+            <input id="doc-lat" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="-9.389123">
+          </label>
+          <label class="field" for="doc-lng">Longitude
+            <input id="doc-lng" type="text" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="-40.503456">
+          </label>
+        </div>
+        <p class="q-hint">No Google Maps, toque e segure sobre o prédio e copie as coordenadas: pode colar as duas juntas em qualquer um dos campos.</p>
+        <div id="doc-coord-msg" class="coord-msg u-hidden" role="status"></div>
+        <div class="mini-map-wrap">
+          <div id="mini-map-doc"></div>
+          <button type="button" id="btn-camada-doc" class="btn-camada">🛰️ Satélite</button>
+        </div>
+      </div>
+
+      <p id="doc-erro" class="field-error u-hidden" role="alert"></p>
+      <button id="btn-ler-docs" class="btn-red" type="button">Ler documentos</button>
+    </div>
+
     <form id="rti-form" style="display:flex; flex-direction:column; gap:16px;">
 
+      <div id="leitura-avisos" class="leitura-avisos u-hidden" role="status"></div>
+
       <div class="field" id="bloco-localizacao">
-        <div id="loc-modo-tabs" class="loc-tabs u-hidden">
-          <button type="button" class="loc-tab active" data-modo="gps">📍 Minha localização (GPS)</button>
-          <button type="button" class="loc-tab" data-modo="manual">🗺️ Marcar no mapa</button>
+        <div id="loc-doc-box" class="u-hidden">
+          <div class="loc-box">
+            <div class="coords"><span>Lat:</span> <span id="loc-lat-doc">—</span> &nbsp; <span>Long:</span> <span id="loc-lng-doc">—</span></div>
+            <button id="btn-voltar-docs" class="btn-outline-navy" type="button">Alterar documentos ou coordenadas</button>
+          </div>
         </div>
 
         <div id="loc-gps-box">

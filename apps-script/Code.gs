@@ -169,6 +169,7 @@ function despachar_(body) {
     case 'listarRTIs': return jsonResponse_(handleListarRTIs_(body));
     case 'editarRTI': return jsonResponse_(handleEditarRTI_(body));
     case 'excluirRTI': return jsonResponse_(handleExcluirRTI_(body));
+    case 'autorizarLeituraDocumentos': return jsonResponse_(handleAutorizarLeituraDocumentos_(body)); // Documentos.gs (chamada pelo n8n)
     default: return jsonResponse_({ ok: false, error: 'Ação inválida.' });
   }
 }
@@ -294,7 +295,9 @@ function gravarCadastroRTI_(body, d, sessao) {
   });
   sheet.appendRow(novaLinha);
 
-  registrarLog_(sessao.login, sessao.perfil, 'cadastro_rti', d.nome + ' (' + d.capacidade + ' L)');
+  // Aba do site usada no cadastro (documentos, gps ou mapa) — só para auditoria.
+  var origem = { documentos: 'via documentos', gps: 'via GPS', mapa: 'via mapa' }[body.origem];
+  registrarLog_(sessao.login, sessao.perfil, 'cadastro_rti', d.nome + ' (' + d.capacidade + ' L)' + (origem ? ' ' + origem : ''));
   return { ok: true, id: id };
 }
 

@@ -3,3 +3,4 @@ node_modules/
 Thumbs.db
 # arquivo temporario da migracao (contem a URL da base anterior e o hash do usuario de teste)
 apps-script/Migracao.gs
+apps-script/Testes.gs

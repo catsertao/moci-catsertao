@@ -117,7 +117,8 @@ main.map-area{ position:relative; flex:1 1 auto; min-height:0; width:100%; }
 
 /* ===== Modal de cadastro ===== */
 .modal-overlay{
-  position:fixed; inset:0; background:rgba(20,32,74,.55); z-index:1000;
+  /* 1200: acima dos botões flutuantes do mapa (1001) e abaixo do menu (1300) e do login (1400) */
+  position:fixed; inset:0; background:rgba(20,32,74,.55); z-index:1200;
   display:flex; align-items:flex-end; justify-content:center;
 }
 .modal-card{
@@ -175,10 +176,42 @@ main.map-area{ position:relative; flex:1 1 auto; min-height:0; width:100%; }
 .loc-tab.active{ background:var(--navy); border-color:var(--navy); color:#fff; }
 
 #mini-map{ width:100%; height:220px; border-radius:12px; overflow:hidden; border:1px solid var(--border-2); }
+
+/* ===== Cadastro novo: 3 abas (Documentos | GPS do celular | Preencher tudo) ===== */
+.cad-abas{ display:flex; gap:6px; margin:0 0 16px; border-bottom:2px solid var(--border); }
+.cad-aba{
+  flex:1; font-family:'Oswald', sans-serif; font-weight:600; font-size:12.5px; letter-spacing:.03em; text-transform:uppercase;
+  color:var(--muted); background:var(--field-bg); border:1px solid var(--border-2); border-bottom:none;
+  padding:10px 6px; border-radius:10px 10px 0 0; cursor:pointer; margin-bottom:-2px;
+}
+.cad-aba.active{ background:var(--navy); border-color:var(--navy); color:#fff; }
+.painel-docs{ display:flex; flex-direction:column; gap:14px; }
+.doc-arquivo input[type=file]{
+  font-size:13px; padding:10px; border:1.5px dashed var(--border-2); border-radius:10px; background:var(--field-bg); width:100%; cursor:pointer;
+}
+.coord-grid{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; margin-top:6px; }
+.coord-grid input{ width:100%; min-width:0; box-sizing:border-box; font-family:'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace; letter-spacing:.02em; }
+.coord-msg{ text-transform:none; letter-spacing:normal; font-weight:400; font-size:12.5px; padding:9px 11px; border-radius:9px; display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
+.coord-msg.erro{ color:#9c1c1c; background:#FBEAEA; border:1px solid #F0C7C7; }
+.coord-msg.alerta{ color:var(--warn-text); background:var(--warn-bg); border:1px solid var(--warn-border); }
+.coord-msg.ok{ color:var(--green-hover); background:#E9F7EF; border:1px solid #BFE8D2; }
+.coord-msg .btn-outline-navy{ align-self:flex-start; margin:0; }
+.mini-map-wrap{ position:relative; }
+#mini-map-doc{ width:100%; height:240px; border-radius:12px; overflow:hidden; border:1px solid var(--border-2); }
+.btn-camada{
+  position:absolute; top:10px; right:10px; z-index:500; font-size:12px; font-weight:600; color:var(--navy);
+  background:#fff; border:1px solid var(--border-2); border-radius:8px; padding:6px 10px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,.15);
+}
+.leitura-avisos{ font-size:12.5px; color:var(--warn-text); background:var(--warn-bg); border:1px solid var(--warn-border); padding:10px 12px; border-radius:10px; }
+.leitura-avisos strong{ display:block; color:var(--navy); margin-bottom:4px; }
+.leitura-avisos ul{ margin:4px 0 0 18px; padding:0; }
+.leitura-avisos li{ margin:3px 0; }
+@media (max-width:420px){ .cad-aba{ font-size:11px; padding:9px 4px; } }
 .q-hint{ font-size:12px; font-weight:400; text-transform:none; letter-spacing:normal; color:var(--muted-3); margin-bottom:8px; }
 
 /* ===== Campos de endereço ===== */
-.endereco-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.endereco-grid{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; }
+.endereco-grid input{ width:100%; min-width:0; box-sizing:border-box; }
 .endereco-grid .field:first-child{ grid-column:1 / -1; }
 
 /* ===== Botão pequeno (usado na tabela de listagem) ===== */

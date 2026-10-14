@@ -98,7 +98,54 @@ O cadastro tem:
 - AVCB com data de validade;
 - pavimentos, área construída e altura (opcionais).
 
-A localização vem do GPS ou é marcada no mapa.
+### As 3 abas do "Cadastrar ocupação"
+
+Todos os perfis que cadastram (Vistoriador, Administrador e Administrador
+geral) veem as três abas. A edição de uma ocupação existente continua sem
+abas, com o ponto ajustável no mapa.
+
+1. **Documentos** (aberta por padrão), para o cadastro à distância:
+   - O militar envia o **Memorial descritivo (PDF)**, que é obrigatório, e o
+     **AVCB (PDF)**, se houver. Cada arquivo pode ter até 5 MB.
+   - Depois digita as **coordenadas em graus decimais com 6 casas**
+     (precisão de cerca de 0,1 m). Colar `lat, lng` do Google Maps preenche
+     os dois campos.
+   - O sistema avisa quando o ponto fica fora de Pernambuco, quando latitude
+     e longitude estão trocadas e quando já existe ocupação a menos de 30 m.
+     Um mini-mapa com modo satélite mostra o ponto.
+   - Em **"Ler documentos"**, a IA lê os PDFs e o formulário abaixo abre
+     preenchido, com avisos (AVCB vencido, memorial sem carimbo, imóveis
+     diferentes etc.). O militar confere e salva.
+   - **Os PDFs não ficam guardados em lugar nenhum.**
+2. **GPS do celular:** cadastro no local, como antes.
+3. **Preencher tudo:** ponto marcado no mapa e todos os campos digitados.
+
+O LOG `cadastro_rti` registra por qual aba a ocupação entrou ("via
+documentos", "via GPS" ou "via mapa").
+
+#### Leitura dos documentos (n8n + OpenAI)
+
+A leitura é feita pelo fluxo **"MOCI - Leitura de Documentos"** no n8n
+(webhook `moci-leitura-documentos`), com a credencial da OpenAI que **fica
+só no n8n**. Nenhuma chave fica neste repositório nem no Apps Script.
+
+1. O site manda os PDFs ao webhook junto com o token de sessão do MOCI.
+2. O n8n chama a ação `autorizarLeituraDocumentos` (`Documentos.gs`), que:
+   - confere o login e o perfil;
+   - aplica o **limite de 20 leituras por usuário por dia**;
+   - registra `leitura_documentos` no LOG.
+3. O n8n chama a OpenAI (Responses API, saída em JSON com schema estrito)
+   e devolve os campos para o formulário.
+
+Outras regras do fluxo:
+
+- **Modelo:** `gpt-5.6-luna`, escolhido em 14/10/2026 nos testes com
+  memoriais e AVCBs reais. Foi mais preciso que o `gpt-4o-mini` e custa
+  cerca de US$ 0,005 por leitura.
+- **Execuções:** o fluxo não guarda execuções no n8n, nem as de erro, porque
+  os PDFs passam por ele.
+- **Origens aceitas pelo webhook:** `https://catsertao.github.io`, mais o
+  servidor local de testes `http://127.0.0.1:8765`.
 
 A cor do marcador é calculada a cada carregamento:
 
