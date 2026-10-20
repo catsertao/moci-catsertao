@@ -186,6 +186,37 @@ Como o sistema aplica essas regras:
   as mesmas duas perguntas de coerência, e a resposta repetida vale como
   confirmação.
 
+#### Nome fantasia, proteção do memorial e seção 9 (desde 20/10/2026)
+
+- **Nome no mapa:** "Nome fantasia (Razão social)".
+  - O formulário tem os dois campos e uma opção "Não tem nome fantasia: usar a
+    razão social". Sem nome fantasia e sem essa opção marcada, o cadastro não
+    salva.
+  - Na edição de uma ocupação antiga (nome sem parênteses), o nome entra como
+    razão social, com a opção marcada.
+- **De onde vem o nome fantasia na leitura:**
+  1. a linha "Nome Fantasia:" do AVCB, só se for do mesmo imóvel do memorial;
+  2. o "Complemento" do endereço do memorial, se for claramente o nome do
+     estabelecimento (ex.: "Shopping Salgueiro");
+  3. na falta dos dois, a **Receita Federal** pelo CNPJ do memorial (BrasilAPI,
+     dados públicos). CPF nunca é consultado.
+
+  O memorial do SACBM só tem a razão social (item 2.2).
+- **Proteção:** no cadastro pela aba Documentos, mudar o que o memorial informa
+  pede confirmação ao salvar, mostrando o que o memorial diz. Vale para:
+  - hidrante de recalque (item 7.1.1);
+  - hidrante de fachada (item 7.1.2);
+  - sprinklers (seção 8);
+  - capacidade da RTI.
+
+  O recalque marcado pelo sistema por presunção não conta como dado do
+  memorial. A proteção foi criada depois de 14 cadastros em que "fachada" foi
+  marcada à mão quando o memorial só tinha recalque.
+- **Seção 9 do memorial:** as opções 9.1.1 (hidrantes e chuveiros), 9.1.2 (só
+  hidrantes) e 9.1.3 (só chuveiros) se excluem, e só uma marcada "Sim" é normal.
+  A IA foi instruída a não apontar isso como conflito, e observações sobre a
+  seção 9 são descartadas no código.
+
 A comparação com o que o COSCIP **exige** pela tabela da triagem (arts. 105-A
 e 132-A) ficou de fora de propósito. Muitos prédios foram aprovados antes de
 27/05/2025, sob os arts. 105 e 132, hoje revogados, e o MOCI registra o que

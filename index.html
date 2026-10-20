@@ -135,9 +135,17 @@
         </div>
       </div>
 
-      <label class="field" for="input-nome">Nome do edifício ou empresa
-        <input id="input-nome" type="text" placeholder="Ex: Edifício Central" required>
-      </label>
+      <div class="field" id="bloco-nome">
+        Nome do estabelecimento
+        <label class="field" for="input-fantasia">Nome fantasia (como é conhecido)
+          <input id="input-fantasia" type="text" autocomplete="off" placeholder="Ex: Shopping Serra Talhada">
+        </label>
+        <label class="checkbox-row"><input id="check-mesmo-nome" type="checkbox"> Não tem nome fantasia: usar a razão social</label>
+        <label class="field" for="input-razao">Razão social
+          <input id="input-razao" type="text" autocomplete="off" placeholder="Ex: P &amp; S Engenharia Eireli EPP">
+        </label>
+        <p id="nome-previa" class="q-hint">No mapa: —</p>
+      </div>
 
       <div class="field">
         Endereço

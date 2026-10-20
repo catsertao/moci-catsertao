@@ -58,6 +58,24 @@ function escapeHtml(str) {
   });
 }
 
+// Nome que vai para o mapa: "Nome fantasia (Razão social)". Sem nome fantasia
+// (opção "usar a razão social"), só a razão social; sem razão social, só o fantasia.
+function comporNome(fantasia, razao, usarRazao) {
+  fantasia = String(fantasia || '').trim();
+  razao = String(razao || '').trim();
+  if (usarRazao) return razao;
+  if (!razao || fantasia.toLowerCase() === razao.toLowerCase()) return fantasia;
+  return fantasia + ' (' + razao + ')';
+}
+
+// Separa um nome salvo como "Fantasia (Razão)". Nome antigo, sem parênteses,
+// é tratado como razão social.
+function separarNome(nome) {
+  const texto = String(nome || '').trim();
+  const m = texto.match(/^(.+?)\s*\(([^()]+)\)$/);
+  return m ? { fantasia: m[1].trim(), razao: m[2].trim() } : { fantasia: '', razao: texto };
+}
+
 function fmtCoord(n) {
   return typeof n === 'number' ? n.toFixed(6) : n;
 }
@@ -628,7 +646,25 @@ function wireCadastroModal() {
   const btnLerDocs = document.getElementById('btn-ler-docs');
   const btnCamadaDoc = document.getElementById('btn-camada-doc');
   let leituraFeita = false;   // aba Documentos: true = formulário preenchido pela leitura, em conferência
+  let leituraMemorial = null; // o que o memorial informa (hidrantes, sprinkler, RTI), para conferir alterações ao salvar
   let coordDoc = null;        // { lat, lng } digitadas e válidas
+
+  // ----- Nome: nome fantasia + razão social -----
+  const inputFantasia = document.getElementById('input-fantasia');
+  const inputRazao = document.getElementById('input-razao');
+  const checkMesmoNome = document.getElementById('check-mesmo-nome');
+  const nomePrevia = document.getElementById('nome-previa');
+
+  function atualizarNome() {
+    const usarRazao = checkMesmoNome.checked;
+    inputFantasia.disabled = usarRazao;
+    if (usarRazao) inputFantasia.value = '';
+    const nome = comporNome(inputFantasia.value, inputRazao.value, usarRazao);
+    nomePrevia.textContent = 'No mapa: ' + (nome || '—');
+  }
+  inputFantasia.addEventListener('input', atualizarNome);
+  inputRazao.addEventListener('input', atualizarNome);
+  checkMesmoNome.addEventListener('change', atualizarNome);
   let mapaDoc = null, marcadorDoc = null, camadaRuaDoc = null, camadaSatDoc = null, sateliteDoc = false;
 
   function rolarModalParaTopo() {
@@ -690,8 +726,10 @@ function wireCadastroModal() {
   // Volta tudo ao estado de "cadastro novo" (arquivos, coordenadas e formulário).
   function limparCadastro() {
     form.reset();
+    atualizarNome();
     hide(campoDataAvcb);
     leituraFeita = false;
+    leituraMemorial = null;
     currentCapture = null;
     coordDoc = null;
     docMemorial.value = '';
@@ -858,7 +896,11 @@ function wireCadastroModal() {
   function preencherFormComLeitura(res) {
     const d = res.dados || {};
     form.reset();
-    document.getElementById('input-nome').value = d.nome || '';
+    inputRazao.value = d.razao_social || d.nome || '';
+    inputFantasia.value = d.nome_fantasia || '';
+    checkMesmoNome.checked = false;
+    atualizarNome();
+    leituraMemorial = res.memorial || null;
     document.getElementById('input-capacidade').value = d.capacidade_litros !== '' && d.capacidade_litros != null ? d.capacidade_litros : '';
     document.getElementById('check-fachada').checked = d.hidrante_fachada === 'SIM';
     document.getElementById('check-recalque').checked = d.hidrante_recalque === 'SIM';
@@ -918,7 +960,13 @@ function wireCadastroModal() {
   checkAvcb.addEventListener('change', toggleCampoDataAvcb);
 
   function preencherFormParaEdicao(point) {
-    document.getElementById('input-nome').value = point.nome || '';
+    // Nome antigo, sem "(razão social)": entra como razão social com a opção
+    // "usar a razão social" marcada, para editar outro campo sem mudar o nome.
+    const partes = separarNome(point.nome);
+    inputFantasia.value = partes.fantasia;
+    inputRazao.value = partes.razao;
+    checkMesmoNome.checked = !partes.fantasia && !!partes.razao;
+    atualizarNome();
     document.getElementById('input-capacidade').value = point.capacidade_litros || '';
     document.getElementById('check-fachada').checked = point.hidrante_fachada === 'SIM';
     document.getElementById('check-recalque').checked = point.hidrante_recalque === 'SIM';
@@ -985,7 +1033,7 @@ function wireCadastroModal() {
   function formTemDadosPreenchidos() {
     return !!(
       docMemorial.files.length || docAvcb.files.length || docLat.value.trim() || docLng.value.trim() ||
-      document.getElementById('input-nome').value.trim() ||
+      inputFantasia.value.trim() || inputRazao.value.trim() ||
       document.getElementById('input-capacidade').value ||
       inputRua.value.trim() || inputNumero.value.trim() || inputBairro.value.trim() || inputCidade.value.trim() ||
       document.getElementById('input-pavimentos').value ||
@@ -1017,7 +1065,10 @@ function wireCadastroModal() {
     e.preventDefault();
     hide(formError);
 
-    const nome = document.getElementById('input-nome').value.trim();
+    const usarRazao = checkMesmoNome.checked;
+    const fantasia = inputFantasia.value.trim();
+    const razao = inputRazao.value.trim();
+    const nome = comporNome(fantasia, razao, usarRazao);
     const capacidade = document.getElementById('input-capacidade').value;
 
     const session = getSession();
@@ -1036,9 +1087,12 @@ function wireCadastroModal() {
       show(formError);
       return;
     }
-    if (!nome) {
-      formError.textContent = 'Informe o nome do edifício ou empresa.';
+    if (usarRazao ? !razao : !fantasia) {
+      formError.textContent = usarRazao
+        ? 'Informe a razão social (ou desmarque "Não tem nome fantasia").'
+        : 'Informe o nome fantasia ou marque "Não tem nome fantasia: usar a razão social".';
       show(formError);
+      (usarRazao ? inputRazao : inputFantasia).focus();
       return;
     }
     if (!capacidade || Number(capacidade) < 0) {
@@ -1092,6 +1146,26 @@ function wireCadastroModal() {
     const temRecalque = document.getElementById('check-recalque').checked;
     const temSprinkler = document.getElementById('check-sprinkler').checked;
     const rtiLitros = Number(capacidade);
+
+    // Cadastro pela leitura do memorial: mudar o que o memorial informa pede
+    // confirmação. Evita, por exemplo, marcar "fachada" quando o memorial só tem
+    // recalque (item 7.1). Recalque presumido pelo sistema não conta como memorial.
+    if (locMode === 'documentos' && leituraMemorial && !editingId) {
+      const m = leituraMemorial, difs = [];
+      const simNao = function (b) { return b ? 'SIM' : 'NÃO'; };
+      const litros = function (n) { return Number(n).toLocaleString('pt-BR') + ' L'; };
+      if (temFachada && m.hidrante_fachada !== 'SIM') difs.push('Hidrante de fachada: o memorial ' + (m.hidrante_fachada === 'NAO' ? 'diz NÃO' : 'não indica') + ' (item 7.1.2), e você marcou.');
+      if (!temFachada && m.hidrante_fachada === 'SIM') difs.push('Hidrante de fachada: o memorial diz SIM (item 7.1.2), e você desmarcou.');
+      if (temRecalque && m.hidrante_recalque === 'NAO') difs.push('Hidrante de recalque: o memorial diz NÃO (item 7.1.1), e você marcou.');
+      if (!temRecalque && m.hidrante_recalque === 'SIM') difs.push('Hidrante de recalque: o memorial diz SIM (item 7.1.1), e você desmarcou.');
+      if ((m.possui_sprinkler === 'SIM' || m.possui_sprinkler === 'NAO') && simNao(temSprinkler) !== simNao(m.possui_sprinkler === 'SIM')) difs.push('Sprinklers: o memorial diz ' + simNao(m.possui_sprinkler === 'SIM') + ' (seção 8), e você marcou ' + simNao(temSprinkler) + '.');
+      if (typeof m.capacidade_litros === 'number' && m.capacidade_litros !== rtiLitros) difs.push('Capacidade da RTI: o memorial soma ' + litros(m.capacidade_litros) + ', e você informou ' + litros(rtiLitros) + '.');
+      if (difs.length && !window.confirm('Você alterou dados que vieram do memorial:\n\n• ' + difs.join('\n• ') +
+        '\n\nClique em OK para salvar assim mesmo, ou em Cancelar para revisar.')) {
+        return;
+      }
+    }
+
     if (rtiLitros > 0 && !temFachada && !temRecalque && !window.confirm(
       'Este cadastro tem RTI de ' + rtiLitros.toLocaleString('pt-BR') + ' L, mas nenhum hidrante marcado.\n\n' +
       'Pelo COSCIP (arts. 100 e 101), toda edificação com RTI tem registro de recalque (na calçada) ' +
