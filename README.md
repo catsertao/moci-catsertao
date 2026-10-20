@@ -147,6 +147,50 @@ Outras regras do fluxo:
 - **Origens aceitas pelo webhook:** `https://catsertao.github.io`, mais o
   servidor local de testes `http://127.0.0.1:8765`.
 
+#### Hidrante, RTI e sprinkler: regras do COSCIP (desde 20/10/2026)
+
+Os dois campos de hidrante do MOCI são as duas formas da tomada de água do
+Corpo de Bombeiros (COSCIP, art. 102): o **registro de recalque**, no passeio
+(calçada), e o **hidrante de fachada**, na parede ou muro.
+
+| Situação | Regra | Base no COSCIP |
+|---|---|---|
+| Há RTI ou sistema fixo (hidrante, mangotinho ou chuveiros) | Existe recalque **ou** fachada | Arts. 45, 100, 101, 120 e 128 |
+| Recalque × fachada | São **alternativas**; um não implica o outro, e podem coexistir (uma por prumada) | Arts. 101 e 103 |
+| RTI × hidrante | RTI **não** implica hidrante: pode servir só a chuveiros automáticos ou a mangotinhos | Arts. 57, §3º, e 105-A |
+| Hidrante, mangotinho ou sprinkler | Sempre há RTI | Arts. 53, §2º, 57 e 112, §2º |
+
+Como o sistema aplica essas regras:
+
+- **Leitura por IA:** a IA lê a seção 7 do memorial item a item, cada um como
+  está escrito:
+  - 7.1.1 Recalque e 7.1.2 Fachada, com a "Localização";
+  - 7.2 Mangotinho;
+  - 7.3 Hidrante;
+  - os volumes da 7.6, sem somar.
+
+  As regras ficam no código do nó "Montar resposta", não na IA:
+  - o código **soma a RTI** (m³ → litros);
+  - se há RTI ou sistema fixo e o memorial não diz qual ligação existe, o
+    código **marca recalque** (a regra do art. 100) e avisa para conferir. A
+    "Localização" desempata: "parede" ou "muro" marca fachada;
+  - avisa quando há sistema fixo sem volume de RTI e quando a soma fica fora
+    de 3.600 a 1.000.000 L (provável erro de unidade).
+- **Formulário (todas as abas e a edição):** pede confirmação antes de salvar
+  em dois casos:
+  - RTI sem nenhum hidrante marcado;
+  - hidrante ou sprinkler marcado com RTI 0.
+
+  A confirmação cita o artigo, e o prédio irregular continua cadastrável.
+- **Chat do n8n** ("OCI - Diálogo de Cadastro" e "OCI - Nova Planilha"): faz
+  as mesmas duas perguntas de coerência, e a resposta repetida vale como
+  confirmação.
+
+A comparação com o que o COSCIP **exige** pela tabela da triagem (arts. 105-A
+e 132-A) ficou de fora de propósito. Muitos prédios foram aprovados antes de
+27/05/2025, sob os arts. 105 e 132, hoje revogados, e o MOCI registra o que
+**existe**.
+
 A cor do marcador é calculada a cada carregamento:
 
 - 🟢 **Verde:** a ocupação possui AVCB e a validade é hoje ou uma data futura.

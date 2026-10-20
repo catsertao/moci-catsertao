@@ -1084,15 +1084,39 @@ function wireCadastroModal() {
       return;
     }
 
+    // Coerência com o COSCIP. Pede confirmação em vez de bloquear, porque um
+    // prédio irregular pode mesmo não ter a ligação. Toda RTI serve a um
+    // sistema fixo, e todo sistema fixo tem registro de recalque ou hidrante de
+    // fachada (arts. 100 e 101); hidrante e chuveiros automáticos sempre têm RTI (art. 57).
+    const temFachada = document.getElementById('check-fachada').checked;
+    const temRecalque = document.getElementById('check-recalque').checked;
+    const temSprinkler = document.getElementById('check-sprinkler').checked;
+    const rtiLitros = Number(capacidade);
+    if (rtiLitros > 0 && !temFachada && !temRecalque && !window.confirm(
+      'Este cadastro tem RTI de ' + rtiLitros.toLocaleString('pt-BR') + ' L, mas nenhum hidrante marcado.\n\n' +
+      'Pelo COSCIP (arts. 100 e 101), toda edificação com RTI tem registro de recalque (na calçada) ' +
+      'ou hidrante de fachada (na parede/muro).\n\n' +
+      'Clique em OK para salvar assim mesmo, ou em Cancelar para marcar o hidrante.')) {
+      document.getElementById('check-recalque').focus();
+      return;
+    }
+    if ((temSprinkler || temFachada || temRecalque) && rtiLitros === 0 && !window.confirm(
+      (temSprinkler ? 'Sprinklers marcados' : 'Hidrante marcado') + ', mas a RTI está em 0 L.\n\n' +
+      'Pelo COSCIP (art. 57), todo sistema de hidrantes, mangotinhos ou chuveiros automáticos tem reserva técnica de incêndio.\n\n' +
+      'Clique em OK para salvar assim mesmo, ou em Cancelar para informar a capacidade.')) {
+      document.getElementById('input-capacidade').focus();
+      return;
+    }
+
     const record = {
       timestamp: new Date().toISOString(),
       lat: currentCapture.lat,
       lng: currentCapture.lng,
       nome: nome,
-      capacidade_litros: Number(capacidade),
-      hidrante_fachada: document.getElementById('check-fachada').checked ? 'SIM' : 'NAO',
-      hidrante_recalque: document.getElementById('check-recalque').checked ? 'SIM' : 'NAO',
-      possui_sprinkler: document.getElementById('check-sprinkler').checked ? 'SIM' : 'NAO',
+      capacidade_litros: rtiLitros,
+      hidrante_fachada: temFachada ? 'SIM' : 'NAO',
+      hidrante_recalque: temRecalque ? 'SIM' : 'NAO',
+      possui_sprinkler: temSprinkler ? 'SIM' : 'NAO',
       possui_caldeira: document.getElementById('check-caldeira').checked ? 'SIM' : 'NAO',
       rua: rua,
       numero: numero,
