@@ -19,6 +19,7 @@ incêndio (RTI), os hidrantes, os sprinklers, a caldeira e a validade do AVCB.
 | `usuarios.html` | Gestão de usuários (administradores). |
 | `conta.html` | Minha conta: troca de senha. |
 | `log.html` | LOG de auditoria (só o administrador geral). |
+| `apresentacoes.html` | Apresentações do MOCI para grupamentos e para diretores (só o administrador geral). Os links levam ao Google Drive pessoal e ao claude.ai do administrador, que só o dono abre. |
 | `auth.js` | Login, sessão, menu do usuário e endereço da API (`API_URL`). |
 | `style.css` | Estilos de todas as páginas. |
 | `apps-script/` | Backend em Google Apps Script (`Code.gs`, `Auth.gs`, `appsscript.json`). |
@@ -74,7 +75,7 @@ até o `auth.js` ser atualizado. Para ver os ids, use `clasp list-deployments`.
 | Perfil | Nome no site | Pode |
 |---|---|---|
 | (sem login) | Visitante | Ver o mapa e a lista, com filtros e distâncias. Não vê quem cadastrou, não exporta, não cadastra nem edita. |
-| `admin_master` | Administrador geral | Tudo: cadastrar, editar e excluir ocupações; gerenciar **qualquer** usuário; ver o LOG. |
+| `admin_master` | Administrador geral | Tudo: cadastrar, editar e excluir ocupações; gerenciar **qualquer** usuário; ver o LOG e as apresentações do MOCI. |
 | `admin` | Administrador | Cadastrar, editar e excluir ocupações; gerenciar só vistoriadores e consultas. |
 | `user1` | Vistoriador | Cadastrar e listar ocupações (não edita nem exclui). |
 | `user2` | Consulta | Só listar. |

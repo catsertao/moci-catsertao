@@ -344,3 +344,12 @@ footer.bottom{ background:var(--navy); color:#c8cde0; flex:0 0 auto; }
   .menu-usuario > summary{ max-width:100%; }
   .menu-usuario-lista{ left:0; right:auto; }
 }
+
+/* ===== Apresentações do MOCI (apresentacoes.html, só administrador geral) ===== */
+.materiais-para{ font-size:14px; color:var(--muted); margin-bottom:12px; }
+.materiais{ list-style:none; display:flex; flex-direction:column; gap:10px; }
+.materiais li{ display:flex; flex-direction:column; gap:4px; padding:12px 14px; border:1px solid var(--border); border-radius:12px; background:var(--field-bg); }
+.materiais li > a:first-child{ font-family:'Oswald',sans-serif; font-weight:600; font-size:17px; text-transform:uppercase; letter-spacing:.02em; color:var(--red); text-decoration:none; }
+.materiais li > a:first-child:hover, .materiais li > a:first-child:focus-visible{ text-decoration:underline; }
+.materiais span{ font-size:13.5px; color:var(--muted); overflow-wrap:anywhere; }
+.materiais .materiais-extra{ font-size:13.5px; color:var(--navy); }

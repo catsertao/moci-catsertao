@@ -207,7 +207,7 @@
     var links = '<a href="index.html">Mapa</a>';
     if (['admin_master', 'admin', 'user1', 'user2'].indexOf(s.perfil) !== -1) links += '<a href="listar.html">Lista de ocupações</a>';
     if (['admin_master', 'admin'].indexOf(s.perfil) !== -1) links += '<a href="usuarios.html">Usuários</a>';
-    if (s.perfil === 'admin_master') links += '<a href="log.html">LOG de auditoria</a>';
+    if (s.perfil === 'admin_master') links += '<a href="log.html">LOG de auditoria</a><a href="apresentacoes.html">Apresentações do MOCI</a>';
     links += '<a href="conta.html">Minha conta</a>';
     area.innerHTML =
       '<details class="menu-usuario">' +

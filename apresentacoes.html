@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apresentações do MOCI — CAT Sertão</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#14204A">
+<link rel="icon" type="image/png" href="CAT-SERTAO-SEM-FUNDO.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-exige-login>
+
+<header class="top">
+  <div class="top-inner">
+    <div class="top-logo"><img src="CAT-SERTAO-SEM-FUNDO.png" alt="Brasão do CAT Sertão"></div>
+    <div style="min-width:0;">
+      <div class="top-org">CAT Sertão · CBMPE</div>
+      <h1 class="top-title">Apresentações do MOCI</h1>
+      <div class="top-sub">Mapa de Ocupações Contra Incêndio (MOCI)</div>
+    </div>
+    <div class="top-actions" id="area-usuario"></div>
+  </div>
+</header>
+
+<main class="pagina-main">
+  <a class="listar-back" href="index.html">← Voltar ao mapa</a>
+  <p id="carregando" class="q-hint">Verificando acesso...</p>
+  <div id="negado" class="field-error u-hidden"></div>
+
+  <!-- Os links apontam para o Google Drive pessoal do administrador geral e para o
+       claude.ai, ambos privados: quem não for o dono não abre, mesmo vendo o link.
+       Ao gerar uma versão nova, atualize o link e a versão aqui (o ID do Drive não
+       muda quando o arquivo é só renomeado). -->
+  <div id="conteudo" class="u-hidden">
+    <section class="painel">
+      <h2>Para os grupamentos</h2>
+      <p class="materiais-para">Militares que vão usar os dados do MOCI nas ocorrências. Versão do 4º GB, de 22/10/2026.</p>
+      <ul class="materiais">
+        <li>
+          <a href="https://claude.ai/artifact/2BgJLFzFqbGKq3t26QCGEm" target="_blank" rel="noopener">Apresentação animada, com som</a>
+          <span>14 cenas passadas à mão: setas, clique ou passador · N mostra as notas · M liga ou desliga o som · F tela cheia. Abre no claude.ai.</span>
+          <a class="materiais-extra" href="https://drive.google.com/file/d/17XSD7zCpN29nIfv6bcuMDkRLHo0uVL-X/view" target="_blank" rel="noopener">Cópia em arquivo (.html) para abrir no computador da sala</a>
+        </li>
+        <li>
+          <a href="https://drive.google.com/file/d/1v7E5jIRr7bMr6a1BR0P4KFgqHV_dGe0f/view" target="_blank" rel="noopener">PowerPoint</a>
+          <span>Apresentacao MOCI GRUPAMENTOS 4o GB V1 22OUT26.pptx · 16 slides, com notas do apresentador.</span>
+        </li>
+        <li>
+          <a href="https://drive.google.com/file/d/1eMOSJ7BASlumZ9IRFZ5dkVGZ_a47DlZV/view" target="_blank" rel="noopener">PDF</a>
+          <span>Apresentacao MOCI GRUPAMENTOS 4o GB V1 22OUT26.pdf</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="painel">
+      <h2>Para os diretores</h2>
+      <p class="materiais-para">Comando e DTIC: proposta de implantação do MOCI em todo o CBMPE. Versão de 14/10/2026.</p>
+      <ul class="materiais">
+        <li>
+          <a href="https://drive.google.com/file/d/13GnBtnu-kGhOMV2y1AaDT7xmn-yk7TMo/view" target="_blank" rel="noopener">PowerPoint</a>
+          <span>Apresentacao MOCI DIRETORES V4 14OUT26.pptx · com o vídeo da animação no penúltimo slide.</span>
+        </li>
+        <li>
+          <a href="https://drive.google.com/file/d/1hQnTVWnNjU-u-xkWG5QO3mjq-JB1Am-W/view" target="_blank" rel="noopener">PDF</a>
+          <span>Apresentacao MOCI DIRETORES V4 14OUT26.pdf</span>
+        </li>
+        <li>
+          <a href="https://drive.google.com/file/d/11mRg0Zn17y88rnjW-zL26J4zs-3barfw/view" target="_blank" rel="noopener">Animação em vídeo</a>
+          <span>Animacao MOCI DIRETORES V3 14OUT26.mp4 · 2min44s, com trilha sonora.</span>
+        </li>
+      </ul>
+    </section>
+
+    <p class="q-hint">Os arquivos ficam no Google Drive pessoal do administrador geral e no claude.ai, com acesso só do dono. Para mostrar a outra pessoa, compartilhe pelo próprio Drive.</p>
+  </div>
+</main>
+
+<footer class="bottom">
+  <div class="bottom-inner">
+    <img src="CAT-SERTAO-SEM-FUNDO.png" alt="">
+    <div class="bottom-text"><strong>MOCI</strong> — desenvolvido pelo CAT Sertão – Centro de Atividades Técnicas do Sertão</div>
+  </div>
+</footer>
+
+<script src="auth.js"></script>
+<script>
+(function () {
+  'use strict';
+  window.MociAuth.exigirPagina(['admin_master'], function () {
+    document.getElementById('carregando').classList.add('u-hidden');
+    document.getElementById('conteudo').classList.remove('u-hidden');
+  }, function () {
+    document.getElementById('carregando').classList.add('u-hidden');
+    var n = document.getElementById('negado');
+    n.textContent = 'Somente o administrador geral acessa as apresentações do MOCI.';
+    n.classList.remove('u-hidden');
+  });
+})();
+</script>
+</body>
+</html>
