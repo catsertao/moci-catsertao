@@ -141,7 +141,7 @@
           '<label class="field">Senha<input name="senha" type="password" autocomplete="current-password" enterkeyhint="go" placeholder="Digite a senha"></label>' +
           '<p class="field-error u-hidden" role="alert"></p>' +
           '<button type="submit" class="btn-red login-entrar"><span class="login-spinner u-hidden" aria-hidden="true"></span><span class="login-rotulo">Entrar</span></button>' +
-          '<p class="login-rodape">A consulta ao mapa é pública. O login é necessário para cadastrar, editar e listar ocupações.</p>' +
+          '<p class="login-rodape">A consulta ao mapa e à lista de ocupações é pública. O login é necessário para cadastrar e editar ocupações.</p>' +
         '</form>' +
       '</div>';
     document.body.appendChild(modal);

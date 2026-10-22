@@ -5,9 +5,10 @@ Técnicas do Sertão — CBMPE). Para cada ocupação, mostra a reserva técnica
 incêndio (RTI), os hidrantes, os sprinklers, a caldeira e a validade do AVCB.
 
 - **Site:** https://catsertao.github.io/moci-catsertao/
-- **Mapa:** público, sem login.
-- **Lista, cadastro, edição e administração:** exigem login. O login é do
-  próprio MOCI, com usuários próprios.
+- **Mapa e lista de ocupações (com a distância até cada ponto):** públicos,
+  sem login. Desde 22/10/2026.
+- **Cadastro, edição, exclusão, exportação para Excel e administração:**
+  exigem login. O login é do próprio MOCI, com usuários próprios.
 
 ## Estrutura
 
@@ -72,6 +73,7 @@ até o `auth.js` ser atualizado. Para ver os ids, use `clasp list-deployments`.
 
 | Perfil | Nome no site | Pode |
 |---|---|---|
+| (sem login) | Visitante | Ver o mapa e a lista, com filtros e distâncias. Não vê quem cadastrou, não exporta, não cadastra nem edita. |
 | `admin_master` | Administrador geral | Tudo: cadastrar, editar e excluir ocupações; gerenciar **qualquer** usuário; ver o LOG. |
 | `admin` | Administrador | Cadastrar, editar e excluir ocupações; gerenciar só vistoriadores e consultas. |
 | `user1` | Vistoriador | Cadastrar e listar ocupações (não edita nem exclui). |
@@ -227,8 +229,11 @@ A cor do marcador é calculada a cada carregamento:
 - 🟢 **Verde:** a ocupação possui AVCB e a validade é hoje ou uma data futura.
 - 🔴 **Vermelho:** a ocupação não possui AVCB, ou a validade já passou.
 
-O mapa público não mostra quem cadastrou (`cadastrado_por`); isso fica na
-lista (com login) e no LOG.
+O mapa e a lista públicos não mostram quem cadastrou (`cadastrado_por`).
+Sem login, a lista usa a mesma leitura pública do mapa (`doGet`). Com login,
+ela usa a ação `listarRTIs`, que traz essa coluna, assim como o LOG. A
+mudança de 22/10/2026 foi só no site: o servidor continua exigindo sessão e
+perfil para cadastrar, editar e excluir.
 
 ## Datas e fuso horário
 

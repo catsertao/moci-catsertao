@@ -483,6 +483,18 @@ function listarRTIsRemoto(token) {
   return Promise.resolve({ ok: true, points: getLocalPoints() });
 }
 
+// Lista sem login: usa a mesma leitura pública do mapa (doGet), que não traz
+// "cadastrado_por". Cadastrar, editar e excluir continuam exigindo sessão no
+// servidor -- isto só lê.
+function listarRTIsPublico() {
+  if (SHEETS_API_URL) {
+    return fetch(SHEETS_API_URL).then(lerRespostaJson).then(function (data) {
+      return { ok: true, points: data.points || data || [] };
+    });
+  }
+  return Promise.resolve({ ok: true, points: getLocalPoints() });
+}
+
 function startApp() {
   determineInitialLocation();
   loadPoints();
@@ -1270,22 +1282,14 @@ function ativarCarregandoBotaoEditar(btn, id) {
 // ===================== Botão "Listar OCI" (abre listar.html numa aba própria) =====================
 // A listagem com filtro/distância vive em listar.html, página separada — ela
 // lê a mesma sessão do localStorage (mesmo site), então não precisa repassar
-// token nenhum pela URL. Aqui só garante que o usuário já entrou antes de
-// abrir a aba, pra ela já carregar com sessão pronta.
+// token nenhum pela URL. Desde 22/10/2026 a lista é pública como o mapa: sem
+// login, ela carrega a leitura pública e só esconde "Cadastrado por", a
+// exportação e os botões de editar/excluir.
 // Nome de aba fixo (em vez de "_blank"): cliques repetidos reaproveitam a
 // mesma aba (só troca de foco) em vez de abrir uma nova a cada clique.
 var LISTAR_OCI_TAB_NAME = 'moci-listar-tab';
 function wireBotaoListar() {
   document.getElementById('btn-listar').addEventListener('click', function () {
-    const session = getSession();
-    if (!session) {
-      pedirLogin(function () { window.open('listar.html', LISTAR_OCI_TAB_NAME); });
-      return;
-    }
-    if (!podeVisualizarLista(session)) {
-      window.alert('Sua conta não tem acesso à lista de ocupações.');
-      return;
-    }
     window.open('listar.html', LISTAR_OCI_TAB_NAME);
   });
 }

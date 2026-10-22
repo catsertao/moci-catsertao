@@ -29,7 +29,7 @@
 <main class="listar-main">
   <a class="listar-back" href="index.html" id="link-voltar-mapa">← Voltar ao mapa</a>
 
-  <p id="carregando-msg" class="q-hint">Verificando sessão...</p>
+  <p id="carregando-msg" class="q-hint">Carregando...</p>
 
   <div id="negado-box" class="field-error u-hidden" style="margin-bottom:16px;"></div>
 
@@ -231,6 +231,8 @@
     }
 
     var mostrarEditar = podeEditar(session);
+    // Sem login os dados vêm da leitura pública, que não traz quem cadastrou.
+    var mostrarCadastrado = podeVisualizarLista(session);
     var visiveis = pontos.slice(0, limiteAtual);
     var omeProxima = omeMaisProxima(userLoc);
 
@@ -239,7 +241,8 @@
     elResumo.textContent = 'Mostrando ' + visiveis.length + ' de ' + totalTxt + distTxt + '.';
 
     var thead = '<thead><tr>' +
-      '<th>Nome</th><th>Endereço</th><th>Distância</th><th>Dist. Quartel mais próx.</th><th>Quartel</th><th>Capacidade RTI</th><th>Hidrantes</th><th>Sprinklers</th><th>Caldeira</th><th>AVCB</th><th>Cadastrado por</th>' +
+      '<th>Nome</th><th>Endereço</th><th>Distância</th><th>Dist. Quartel mais próx.</th><th>Quartel</th><th>Capacidade RTI</th><th>Hidrantes</th><th>Sprinklers</th><th>Caldeira</th><th>AVCB</th>' +
+      (mostrarCadastrado ? '<th>Cadastrado por</th>' : '') +
       (mostrarEditar ? '<th></th><th></th>' : '') +
       '</tr></thead>';
 
@@ -256,7 +259,7 @@
         '<td>' + (p.possui_sprinkler === 'SIM' ? 'Sim' : 'Não') + '</td>' +
         '<td>' + (p.possui_caldeira === 'SIM' ? 'Sim' : 'Não') + '</td>' +
         '<td>' + escapeHtml(getAvcbStatus(p).label) + '</td>' +
-        '<td class="td-cadastrado" title="' + escapeHtml(p.cadastrado_por || '—') + '">' + escapeHtml(p.cadastrado_por || '—') + '</td>' +
+        (mostrarCadastrado ? '<td class="td-cadastrado" title="' + escapeHtml(p.cadastrado_por || '—') + '">' + escapeHtml(p.cadastrado_por || '—') + '</td>' : '') +
         (mostrarEditar ? '<td><button type="button" class="btn-outline-navy btn-sm btn-editar" data-id="' + escapeHtml(p.id) + '">Editar</button></td>' : '') +
         (mostrarEditar ? '<td><button type="button" class="btn-outline-navy btn-sm btn-excluir" data-id="' + escapeHtml(p.id) + '" data-nome="' + escapeHtml(p.nome) + '">Excluir</button></td>' : '') +
         '</tr>';
@@ -311,19 +314,29 @@
   // visibilidade dos blocos — serve para reconciliar a tela depois de uma
   // operação cujo resultado ficou incerto.
   function recarregarDoServidor() {
-    var session = getSession();
-    if (!session) return;
-    listarRTIsRemoto(session.token).then(function (res) {
+    buscarPontos().then(function (res) {
       if (!res || !res.ok) return;
       todosOsPontos = (res.points || []).map(normalizePoint);
       renderizar();
     }).catch(function () { /* a mensagem do erro original já foi exibida */ });
   }
 
+  // Com login: lista completa (com "cadastrado_por"). Sem login: a leitura
+  // pública do mapa. O servidor é quem decide o que cada um recebe.
+  function buscarPontos() {
+    var session = getSession();
+    if (!session) return listarRTIsPublico();
+    if (!podeVisualizarLista(session)) {
+      return Promise.resolve({ ok: false, error: 'Sua conta não tem acesso à lista de ocupações.' });
+    }
+    return listarRTIsRemoto(session.token);
+  }
+
   // Exporta TODOS os pontos cadastrados (não só os filtrados/visíveis na
   // tela) com os dados completos — diferente da tabela, que só mostra as
   // colunas resumidas.
   function exportarExcel() {
+    if (!podeVisualizarLista(getSession())) return;
     if (!window.XLSX) {
       window.alert('Biblioteca de exportação não carregou. Verifique sua conexão e tente novamente.');
       return;
@@ -368,6 +381,8 @@
 
   function renderizar() {
     var session = getSession();
+    // Exportar para Excel continua só para quem entrou.
+    if (podeVisualizarLista(session)) show(elBtnExportar); else hide(elBtnExportar);
 
     var filtrados = todosOsPontos.filter(passaNoFiltro).map(function (p) {
       p._distancia = userLoc ? distanciaMetros(userLoc.lat, userLoc.lng, p.lat, p.lng) : null;
@@ -404,33 +419,30 @@
     show(elNegado);
   }
 
+  // A lista é pública (22/10/2026): sem login carrega a leitura pública, e
+  // edição/exclusão só aparecem para quem o servidor autoriza.
+  var localizacaoPedida = false;
   function iniciar() {
-    var session = getSession();
-    if (!session) {
-      // Abre a janela de login do MOCI aqui mesmo e, ao entrar, carrega a lista.
-      elCarregando.textContent = 'Entre com seu usuário para ver a lista de ocupações.';
-      pedirLogin(function () { elCarregando.textContent = 'Carregando...'; iniciar(); });
-      return;
-    }
-    if (!podeVisualizarLista(session)) {
-      mostrarNegado('Sua conta não tem acesso à lista de ocupações.');
-      return;
-    }
-
-    listarRTIsRemoto(session.token).then(function (res) {
+    buscarPontos().then(function (res) {
       hide(elCarregando);
       if (!res.ok) {
+        hide(elConteudo);
         mostrarNegado(res.error || 'Não foi possível carregar a lista agora.');
         return;
       }
+      hide(elNegado);
       todosOsPontos = (res.points || []).map(normalizePoint);
       show(elConteudo);
       renderizar();
-      obterLocalizacao();
+      if (!localizacaoPedida) { localizacaoPedida = true; obterLocalizacao(); }
     }).catch(function () {
       mostrarNegado('Não foi possível conectar ao servidor agora.');
     });
   }
+
+  // Entrou ou saiu (nesta ou em outra aba, ou a sessão expirou): recarrega
+  // com o nível de acesso novo, sem pedir a localização de novo.
+  document.addEventListener('moci:sessao', iniciar);
 
   iniciar();
 })();
