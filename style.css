@@ -353,3 +353,5 @@ footer.bottom{ background:var(--navy); color:#c8cde0; flex:0 0 auto; }
 .materiais li > a:first-child:hover, .materiais li > a:first-child:focus-visible{ text-decoration:underline; }
 .materiais span{ font-size:13.5px; color:var(--muted); overflow-wrap:anywhere; }
 .materiais .materiais-extra{ font-size:13.5px; color:var(--navy); }
+.materiais .materiais-chave{ font-size:13px; color:var(--warn-text); background:var(--warn-bg); border:1px solid var(--warn-border); border-radius:8px; padding:6px 9px; }
+.materiais .materiais-chave.ok{ color:var(--green); background:#EAF6EF; border-color:#BFE3CC; }

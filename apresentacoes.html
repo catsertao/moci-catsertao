@@ -41,15 +41,15 @@
       <p class="materiais-para">Militares que vão usar os dados do MOCI nas ocorrências. Versão do 4º GB, de 22/10/2026.</p>
       <ul class="materiais">
         <li>
-          <a href="https://claude.ai/artifact/2BgJLFzFqbGKq3t26QCGEm" target="_blank" rel="noopener">Apresentação animada, com som</a>
-          <span>14 cenas passadas à mão: setas, clique ou passador · N mostra as notas · M liga ou desliga o som · F tela cheia. Abre no claude.ai.</span>
+          <!-- A chave de acesso NÃO entra aqui: este repositório é público. O site abre direto
+               no navegador que já abriu o link completo uma vez (a chave fica guardada no próprio
+               navegador, origem catsertao.github.io); o link completo está só no arquivo do Drive. -->
+          <a href="https://catsertao.github.io/moci-apresentacao/" target="_blank" rel="noopener">Apresentação animada, com som</a>
+          <span>catsertao.github.io/moci-apresentacao · 14 cenas passadas à mão: setas, clique ou passador · N mostra as notas · M liga ou desliga o som · F tela cheia.</span>
+          <span class="materiais-chave" id="aviso-chave"></span>
+          <a class="materiais-extra" href="https://drive.google.com/file/d/1kRQxhX_afx16ybzILdWJi1tw49AsReN1/view" target="_blank" rel="noopener">Link completo, com a chave de acesso (arquivo no seu Drive): é o que se envia para outra pessoa abrir</a>
+          <a class="materiais-extra" href="https://claude.ai/artifact/2BgJLFzFqbGKq3t26QCGEm" target="_blank" rel="noopener">A mesma apresentação no claude.ai</a>
           <a class="materiais-extra" href="https://drive.google.com/file/d/17XSD7zCpN29nIfv6bcuMDkRLHo0uVL-X/view" target="_blank" rel="noopener">Cópia em arquivo (.html) para abrir no computador da sala</a>
-        </li>
-        <li>
-          <!-- A chave de acesso NÃO entra aqui: este repositório é público. O link completo
-               fica só no arquivo do Drive pessoal (privado) para onde este item aponta. -->
-          <a href="https://drive.google.com/file/d/1kRQxhX_afx16ybzILdWJi1tw49AsReN1/view" target="_blank" rel="noopener">Site no GitHub: link completo</a>
-          <span>catsertao.github.io/moci-apresentacao · a mesma apresentação animada, cifrada. Abre só com o link completo, que está neste arquivo do seu Drive; sem ele, a página mostra apenas um aviso. Para mostrar a alguém, envie o link completo.</span>
         </li>
         <li>
           <a href="https://drive.google.com/file/d/1v7E5jIRr7bMr6a1BR0P4KFgqHV_dGe0f/view" target="_blank" rel="noopener">PowerPoint</a>
@@ -99,6 +99,14 @@
   window.MociAuth.exigirPagina(['admin_master'], function () {
     document.getElementById('carregando').classList.add('u-hidden');
     document.getElementById('conteudo').classList.remove('u-hidden');
+    // Mesma chave que o site moci-apresentacao guarda ao ser aberto pelo link completo.
+    var temChave = false;
+    try { temChave = !!localStorage.getItem('moci-apresentacao-chave'); } catch (e) { /* sem armazenamento */ }
+    var aviso = document.getElementById('aviso-chave');
+    aviso.textContent = temChave
+      ? 'Este navegador já tem a chave de acesso: o botão acima abre a apresentação direto.'
+      : 'Primeira vez neste navegador: abra uma vez pelo link completo (logo abaixo). Depois disso, o botão acima abre direto.';
+    aviso.classList.toggle('ok', temChave);
   }, function () {
     document.getElementById('carregando').classList.add('u-hidden');
     var n = document.getElementById('negado');
