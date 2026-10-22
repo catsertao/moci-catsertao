@@ -19,7 +19,7 @@ incêndio (RTI), os hidrantes, os sprinklers, a caldeira e a validade do AVCB.
 | `usuarios.html` | Gestão de usuários (administradores). |
 | `conta.html` | Minha conta: troca de senha. |
 | `log.html` | LOG de auditoria (só o administrador geral). |
-| `apresentacoes.html` | Apresentações do MOCI para grupamentos e para diretores (só o administrador geral). Os links levam ao Google Drive pessoal e ao claude.ai do administrador, que só o dono abre. |
+| `apresentacoes.html` | Apresentações do MOCI para grupamentos e para diretores (só o administrador geral). A apresentação animada abre no site `catsertao.github.io/moci-apresentacao`, com o conteúdo cifrado; a chave nunca entra neste repositório. Os demais links levam ao Google Drive pessoal e ao claude.ai do administrador, que só o dono abre. |
 | `auth.js` | Login, sessão, menu do usuário e endereço da API (`API_URL`). |
 | `style.css` | Estilos de todas as páginas. |
 | `apps-script/` | Backend em Google Apps Script (`Code.gs`, `Auth.gs`, `appsscript.json`). |
