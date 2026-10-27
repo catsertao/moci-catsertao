@@ -178,8 +178,8 @@
 
   function listaHidrantes(p) {
     var itens = [];
-    if (p.hidrante_fachada === 'SIM') itens.push('Fachada');
-    if (p.hidrante_recalque === 'SIM') itens.push('Recalque');
+    if (p.hidrante_fachada === 'SIM') itens.push('Fachada (interno)');
+    if (p.hidrante_recalque === 'SIM') itens.push('Recalque (externo)');
     return itens.length ? itens.join(', ') : '—';
   }
 
@@ -356,8 +356,8 @@
         'Latitude': p.lat,
         'Longitude': p.lng,
         'Capacidade RTI (L)': p.capacidade_litros,
-        'Hidrante de fachada': p.hidrante_fachada === 'SIM' ? 'Sim' : 'Não',
-        'Hidrante de recalque': p.hidrante_recalque === 'SIM' ? 'Sim' : 'Não',
+        'Hidrante de fachada (interno)': p.hidrante_fachada === 'SIM' ? 'Sim' : 'Não',
+        'Hidrante de recalque (externo)': p.hidrante_recalque === 'SIM' ? 'Sim' : 'Não',
         'Possui sprinklers': p.possui_sprinkler === 'SIM' ? 'Sim' : 'Não',
         'Possui caldeira': p.possui_caldeira === 'SIM' ? 'Sim' : 'Não',
         'Possui AVCB': p.possui_avcb === 'SIM' ? 'Sim' : 'Não',

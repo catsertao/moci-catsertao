@@ -101,7 +101,7 @@ O cadastro tem:
 - nome;
 - endereço (rua, número ou "NI", bairro, cidade);
 - capacidade da RTI (litros);
-- hidrante de fachada e de recalque;
+- hidrante de fachada (interno) e de recalque (externo);
 - sprinklers e caldeira;
 - AVCB com data de validade;
 - pavimentos, área construída e altura (opcionais).
@@ -157,14 +157,15 @@ Outras regras do fluxo:
 
 #### Hidrante, RTI e sprinkler: regras do COSCIP (desde 20/10/2026)
 
-Os dois campos de hidrante do MOCI são as duas formas da tomada de água do
-Corpo de Bombeiros (COSCIP, art. 102): o **registro de recalque**, no passeio
-(calçada), e o **hidrante de fachada**, na parede ou muro.
+Os dois campos de hidrante do MOCI aparecem no site como **hidrante de
+fachada (interno)** e **hidrante de recalque (externo)**: o parêntese é para
+quem cadastra e para quem lê. São as duas formas da tomada de água do Corpo de
+Bombeiros (COSCIP, art. 102).
 
-| Situação | Regra | Base no COSCIP |
+| Situação | Regra | Base |
 |---|---|---|
-| Há RTI ou sistema fixo (hidrante, mangotinho ou chuveiros) | Existe recalque **ou** fachada | Arts. 45, 100, 101, 120 e 128 |
-| Recalque × fachada | São **alternativas**; um não implica o outro, e podem coexistir (uma por prumada) | Arts. 101 e 103 |
+| Há RTI ou sistema fixo (hidrante, mangotinho ou chuveiros) | Existe recalque **ou** fachada | COSCIP, arts. 45, 100, 101, 120 e 128 |
+| Recalque × fachada | **Recalque implica fachada.** A fachada pode existir sozinha | Decisão do CAT Sertão, 27/10/2026 |
 | RTI × hidrante | RTI **não** implica hidrante: pode servir só a chuveiros automáticos ou a mangotinhos | Arts. 57, §3º, e 105-A |
 | Hidrante, mangotinho ou sprinkler | Sempre há RTI | Arts. 53, §2º, 57 e 112, §2º |
 
@@ -184,6 +185,14 @@ Como o sistema aplica essas regras:
     "Localização" desempata: "parede" ou "muro" marca fachada;
   - avisa quando há sistema fixo sem volume de RTI e quando a soma fica fora
     de 3.600 a 1.000.000 L (provável erro de unidade).
+- **Recalque implica fachada (desde 27/10/2026):**
+  - no formulário, marcar o recalque marca a fachada e a trava até o recalque
+    ser desmarcado;
+  - o backend grava fachada "SIM" sempre que o recalque é "SIM", também nos
+    cadastros do chat do n8n;
+  - na leitura (mapa, lista, exportação e `listarRTIs`), as linhas antigas com
+    recalque aparecem com fachada. A planilha não foi alterada: a célula
+    antiga só muda quando a ocupação é editada.
 - **Formulário (todas as abas e a edição):** pede confirmação antes de salvar
   em dois casos:
   - RTI sem nenhum hidrante marcado;
@@ -212,14 +221,14 @@ Como o sistema aplica essas regras:
   O memorial do SACBM só tem a razão social (item 2.2).
 - **Proteção:** no cadastro pela aba Documentos, mudar o que o memorial informa
   pede confirmação ao salvar, mostrando o que o memorial diz. Vale para:
-  - hidrante de recalque (item 7.1.1);
-  - hidrante de fachada (item 7.1.2);
+  - hidrante de recalque (externo) (item 7.1.1);
+  - hidrante de fachada (interno) (item 7.1.2);
   - sprinklers (seção 8);
   - capacidade da RTI.
 
   O recalque marcado pelo sistema por presunção não conta como dado do
-  memorial. A proteção foi criada depois de 14 cadastros em que "fachada" foi
-  marcada à mão quando o memorial só tinha recalque.
+  memorial. Recalque no memorial (item 7.1.1) vale como fachada, pela regra
+  de 27/10/2026.
 - **Seção 9 do memorial:** as opções 9.1.1 (hidrantes e chuveiros), 9.1.2 (só
   hidrantes) e 9.1.3 (só chuveiros) se excluem, e só uma marcada "Sim" é normal.
   A IA foi instruída a não apontar isso como conflito, e observações sobre a

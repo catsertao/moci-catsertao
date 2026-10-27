@@ -83,6 +83,14 @@ function normalizarDataCelula_(value) {
   return value;
 }
 
+// Recalque implica fachada (desde 27/10/2026): quem tem hidrante de recalque
+// (externo) tem também o de fachada (interno). Aplicada na leitura para valer
+// também nas linhas gravadas antes da regra.
+function aplicarRegraHidrantes_(point) {
+  if (point.hidrante_recalque === 'SIM') point.hidrante_fachada = 'SIM';
+  return point;
+}
+
 function jsonResponse_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
@@ -121,7 +129,7 @@ function doGet(e) {
       if (headers[c] === 'cadastrado_por') continue;
       point[headers[c]] = headers[c] === 'data_validade_avcb' ? normalizarDataCelula_(row[c]) : row[c];
     }
-    points.push(point);
+    points.push(aplicarRegraHidrantes_(point));
   }
 
   return jsonResponse_({ ok: true, points: points });
@@ -231,7 +239,8 @@ function validarDadosRTI_(body) {
 
   return {
     lat: lat, lng: lng, nome: nome, capacidade: capacidade,
-    hidranteFachada: body.hidrante_fachada === 'SIM' ? 'SIM' : 'NAO',
+    // Recalque implica fachada (ver aplicarRegraHidrantes_), também no chat do n8n.
+    hidranteFachada: body.hidrante_fachada === 'SIM' || body.hidrante_recalque === 'SIM' ? 'SIM' : 'NAO',
     hidranteRecalque: body.hidrante_recalque === 'SIM' ? 'SIM' : 'NAO',
     possuiSprinkler: body.possui_sprinkler === 'SIM' ? 'SIM' : 'NAO',
     possuiCaldeira: body.possui_caldeira === 'SIM' ? 'SIM' : 'NAO',
@@ -322,7 +331,7 @@ function handleListarRTIs_(body) {
     for (var c = 0; c < headers.length; c++) {
       point[headers[c]] = headers[c] === 'data_validade_avcb' ? normalizarDataCelula_(row[c]) : row[c];
     }
-    pontos.push(point);
+    pontos.push(aplicarRegraHidrantes_(point));
   }
 
   return { ok: true, points: pontos };
