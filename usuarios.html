@@ -54,6 +54,7 @@
 
     <section class="painel">
       <h2>Usuários cadastrados</h2>
+      <p class="q-hint" style="margin-bottom:10px;"><b>Editar</b> muda o login, o perfil ou a senha (para quem esqueceu a senha). A sua própria conta se muda em "Minha conta".</p>
       <p id="msg-lista" class="u-hidden" role="status" style="margin-bottom:10px;"></p>
       <div class="table-wrap">
         <table class="rti-table" id="tabela-usuarios">
@@ -64,6 +65,33 @@
     </section>
   </div>
 </main>
+
+<div id="modal-editar" class="modal-overlay u-hidden" role="dialog" aria-modal="true" aria-labelledby="editar-titulo">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2 id="editar-titulo">Editar usuário</h2>
+      <button type="button" class="modal-close" id="editar-fechar" aria-label="Fechar">&times;</button>
+    </div>
+    <form id="form-editar" class="form-modal" autocomplete="off" novalidate>
+      <label class="field">Usuário (login)
+        <input id="editar-login" type="text" autocapitalize="none" autocorrect="off" spellcheck="false">
+      </label>
+      <label class="field">Perfil
+        <select id="editar-perfil"></select>
+      </label>
+      <label class="field">Nova senha
+        <input id="editar-senha" type="password" autocomplete="new-password" placeholder="em branco: mantém a senha atual">
+      </label>
+      <label class="checkbox-row"><input id="editar-mostrar" type="checkbox"> Mostrar a senha</label>
+      <p class="q-hint">Salvar encerra as sessões abertas dessa pessoa. Com senha nova, ela entra com essa senha e pode trocá-la em "Minha conta".</p>
+      <p id="msg-editar" class="u-hidden" role="alert"></p>
+      <div class="form-acoes">
+        <button type="submit" class="btn-red" id="btn-salvar-edicao">Salvar</button>
+        <button type="button" class="btn-acao" id="editar-cancelar">Cancelar</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <footer class="bottom">
   <div class="bottom-inner">
@@ -80,6 +108,7 @@
   var elCarregando = document.getElementById('carregando'), elNegado = document.getElementById('negado'), elConteudo = document.getElementById('conteudo');
   var tbody = document.querySelector('#tabela-usuarios tbody');
   var msgNovo = document.getElementById('msg-novo'), msgLista = document.getElementById('msg-lista');
+  var perfisPermitidos = [];
 
   function mensagem(el, texto, ok) {
     el.textContent = texto;
@@ -107,7 +136,10 @@
             : '<button type="button" class="btn-acao" data-acao="reativarUsuario" data-login="' + esc(u.login) + '">Reativar</button>' +
               '<button type="button" class="btn-acao perigo" data-acao="excluirUsuario" data-login="' + esc(u.login) + '">Excluir</button>';
         }
-        return '<tr><td><b>' + esc(u.login) + '</b>' + (proprio ? ' (você)' : '') + '</td>' +
+        var editar = podeMexer
+          ? '<button type="button" class="btn-acao" data-acao="editar" data-login="' + esc(u.login) + '" data-perfil="' + esc(u.perfil) + '">Editar</button>'
+          : '';
+        return '<tr><td><div class="usuario-celula"><b>' + esc(u.login) + '</b>' + (proprio ? ' (você)' : '') + editar + '</div></td>' +
           '<td>' + esc(A.NOME_PERFIL[u.perfil] || u.perfil) + '</td>' +
           '<td><span class="status-pill ' + (u.ativo ? 'ativo' : 'inativo') + '">' + (u.ativo ? 'Ativo' : 'Inativo') + '</span></td>' +
           '<td>' + esc(u.criado_por || '') + '</td><td>' + dataBR(u.criado_em) + '</td>' +
@@ -123,6 +155,7 @@
     var b = e.target.closest('[data-acao]');
     if (!b) return;
     var acao = b.getAttribute('data-acao'), login = b.getAttribute('data-login');
+    if (acao === 'editar') { abrirEdicao(login, b.getAttribute('data-perfil')); return; }
     var pergunta = { desativarUsuario: 'Desativar "' + login + '"? A pessoa deixa de conseguir entrar e as sessões abertas são encerradas.',
       reativarUsuario: 'Reativar "' + login + '"?',
       excluirUsuario: 'Excluir "' + login + '" definitivamente? Isso não pode ser desfeito.' }[acao];
@@ -135,6 +168,65 @@
     }).catch(function (err) {
       mensagem(msgLista, err.message, false);
       b.disabled = false;
+    });
+  });
+
+  // ----- Editar usuário: login, perfil e senha nova -----
+  var modalEditar = document.getElementById('modal-editar'), formEditar = document.getElementById('form-editar');
+  var edLogin = document.getElementById('editar-login'), edPerfil = document.getElementById('editar-perfil');
+  var edSenha = document.getElementById('editar-senha'), edMostrar = document.getElementById('editar-mostrar');
+  var msgEditar = document.getElementById('msg-editar'), btnSalvar = document.getElementById('btn-salvar-edicao');
+  var alvo = null;
+
+  function abrirEdicao(login, perfil) {
+    alvo = { login: login, perfil: perfil };
+    edLogin.value = login;
+    edPerfil.innerHTML = perfisPermitidos.map(function (p) {
+      return '<option value="' + p + '">' + A.NOME_PERFIL[p] + '</option>';
+    }).join('');
+    edPerfil.value = perfil;
+    edSenha.value = '';
+    edSenha.type = 'password';
+    edMostrar.checked = false;
+    msgEditar.className = 'u-hidden';
+    btnSalvar.disabled = false;
+    modalEditar.classList.remove('u-hidden');
+    setTimeout(function () { edLogin.focus(); }, 30);
+  }
+  function fecharEdicao() { modalEditar.classList.add('u-hidden'); alvo = null; }
+
+  document.getElementById('editar-fechar').addEventListener('click', fecharEdicao);
+  document.getElementById('editar-cancelar').addEventListener('click', fecharEdicao);
+  modalEditar.addEventListener('click', function (e) { if (e.target === modalEditar) fecharEdicao(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && alvo) fecharEdicao(); });
+  edMostrar.addEventListener('change', function () { edSenha.type = edMostrar.checked ? 'text' : 'password'; });
+
+  formEditar.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!alvo) return;
+    var novoLogin = edLogin.value.trim().toLowerCase(), perfil = edPerfil.value, senha = edSenha.value;
+    if (!novoLogin) { mensagem(msgEditar, 'Informe o usuário (login).', false); return; }
+    if (senha && senha.length < 6) { mensagem(msgEditar, 'A nova senha deve ter pelo menos 6 caracteres.', false); return; }
+    var mudancas = [];
+    if (novoLogin !== alvo.login) mudancas.push('login "' + alvo.login + '" → "' + novoLogin + '"');
+    if (perfil !== alvo.perfil) mudancas.push('perfil ' + (A.NOME_PERFIL[alvo.perfil] || alvo.perfil) + ' → ' + A.NOME_PERFIL[perfil]);
+    if (senha) mudancas.push('senha nova');
+    if (!mudancas.length) { mensagem(msgEditar, 'Nada foi alterado.', false); return; }
+    if (!window.confirm('Salvar em "' + alvo.login + '"?\n\n- ' + mudancas.join('\n- ') + '\n\nAs sessões abertas dessa pessoa serão encerradas.')) return;
+    btnSalvar.disabled = true;
+    A.api({
+      action: 'editarUsuario', token: A.getSession().token, login: alvo.login,
+      novoLogin: novoLogin !== alvo.login ? novoLogin : '',
+      perfil: perfil !== alvo.perfil ? perfil : '',
+      novaSenha: senha
+    }).then(function (res) {
+      if (!res.ok) throw new Error(res.error || 'Não foi possível salvar.');
+      fecharEdicao();
+      mensagem(msgLista, 'Usuário "' + res.login + '" atualizado: ' + mudancas.join('; ') + '.', true);
+      carregar();
+    }).catch(function (err) {
+      mensagem(msgEditar, err.message, false);
+      btnSalvar.disabled = false;
     });
   });
 
@@ -158,8 +250,8 @@
   });
 
   A.exigirPagina(['admin_master', 'admin'], function (s) {
-    var perfis = s.perfil === 'admin_master' ? ['user1', 'user2', 'admin', 'admin_master'] : ['user1', 'user2'];
-    document.getElementById('novo-perfil').innerHTML = perfis.map(function (p) {
+    perfisPermitidos = s.perfil === 'admin_master' ? ['user1', 'user2', 'admin', 'admin_master'] : ['user1', 'user2'];
+    document.getElementById('novo-perfil').innerHTML = perfisPermitidos.map(function (p) {
       return '<option value="' + p + '">' + A.NOME_PERFIL[p] + '</option>';
     }).join('');
     elCarregando.classList.add('u-hidden');

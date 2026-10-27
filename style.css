@@ -137,7 +137,7 @@ main.map-area{ position:relative; flex:1 1 auto; min-height:0; width:100%; }
 .modal-close:hover{ color:var(--red); }
 
 .field{ display:flex; flex-direction:column; gap:6px; font-size:12px; font-weight:600; letter-spacing:.04em; color:var(--muted); text-transform:uppercase; }
-.field input[type=text], .field input[type=number], .field select{
+.field input[type=text], .field input[type=number], .field input[type=password], .field select{
   font-family:'Public Sans', sans-serif; font-size:15px; font-weight:400; text-transform:none; letter-spacing:normal;
   padding:12px 14px; border:1px solid var(--border-2); border-radius:10px; background:var(--field-bg); outline:none; color:var(--ink);
 }
@@ -334,6 +334,8 @@ footer.bottom{ background:var(--navy); color:#c8cde0; flex:0 0 auto; }
 .btn-acao:hover{ border-color:var(--navy); color:var(--navy); }
 .btn-acao.perigo{ color:#9c1c1c; border-color:#F0C7C7; background:#FBEAEA; }
 .acoes-celula{ display:flex; gap:6px; flex-wrap:wrap; }
+.usuario-celula{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.form-modal{ display:flex; flex-direction:column; gap:14px; }
 .paginacao{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-top:12px; font-size:13px; color:var(--muted-2); }
 .paginacao .grupo{ display:flex; align-items:center; gap:8px; }
 .paginacao select{ font-size:14px; padding:6px 8px; border:1px solid var(--border-2); border-radius:8px; background:#fff; }

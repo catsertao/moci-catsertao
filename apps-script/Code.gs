@@ -162,6 +162,7 @@ function despachar_(body) {
     case 'criarUsuario': return jsonResponse_(handleCriarUsuario_(body));
     case 'desativarUsuario': return jsonResponse_(handleDesativarUsuario_(body));
     case 'reativarUsuario': return jsonResponse_(handleReativarUsuario_(body));
+    case 'editarUsuario': return jsonResponse_(handleEditarUsuario_(body));
     case 'excluirUsuario': return jsonResponse_(handleExcluirUsuario_(body));
     case 'alterarSenha': return jsonResponse_(handleAlterarSenha_(body));
     case 'listarLog': return jsonResponse_(handleListarLog_(body));

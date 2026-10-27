@@ -85,6 +85,11 @@ Regras de usuários:
 - Um usuário só pode ser excluído **depois de desativado**. Ninguém exclui
   nem desativa a própria conta.
 - Trocar a senha encerra as sessões em outros aparelhos.
+- O botão **Editar**, ao lado do login, muda o login, o perfil ou a senha de
+  quem o administrador pode gerenciar (o admin, só vistoriadores e consultas).
+  Serve para quem esqueceu a senha. A própria conta se muda em "Minha conta".
+  Salvar encerra as sessões abertas da pessoa, e a senha nova desfaz o
+  bloqueio por senhas erradas.
 - O site encerra a sessão depois de **30 minutos sem uso**. No servidor, a
   sessão vale 8 horas.
 - Cinco senhas erradas seguidas bloqueiam o login por 15 minutos.

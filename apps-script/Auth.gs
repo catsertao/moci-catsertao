@@ -359,6 +359,77 @@ function handleReativarUsuario_(body) {
   return { ok: true };
 }
 
+// Edição pelo administrador: login, perfil e/ou senha nova, sem pedir a senha
+// atual (é o caminho para quem esqueceu a senha). Mesmas regras de desativar:
+// ninguém edita a própria conta por aqui (a própria senha se troca em "Minha
+// conta"), e o admin só mexe em vistoriador e consulta, nem promove além disso.
+// Qualquer mudança encerra as sessões abertas da pessoa: a sessão guarda login
+// e perfil, então um perfil rebaixado continuaria valendo até expirar (8 h).
+function handleEditarUsuario_(body) {
+  var sessao = exigirSessao_(body.token, ['admin_master', 'admin']);
+  if (sessao.erro) return { ok: false, error: sessao.erro };
+
+  var loginAlvo = String(body.login || '').trim().toLowerCase();
+  var novoLogin = String(body.novoLogin || '').trim().toLowerCase() || loginAlvo;
+  var novoPerfil = String(body.perfil || '');
+  var novaSenha = String(body.novaSenha || '');
+
+  if (loginAlvo === sessao.login) {
+    return { ok: false, error: 'Para mudar a sua própria conta, use "Minha conta".' };
+  }
+  if (novaSenha && novaSenha.length < 6) {
+    return { ok: false, error: 'A nova senha deve ter pelo menos 6 caracteres.' };
+  }
+  if (novoPerfil && PERFIS_VALIDOS.indexOf(novoPerfil) === -1) {
+    return { ok: false, error: 'Perfil inválido.' };
+  }
+
+  var mudancas = [];
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var usuario = buscarUsuario_(loginAlvo);
+    if (!usuario) return { ok: false, error: 'Usuário não encontrado.' };
+    if (!podeGerenciarPerfil_(sessao.perfil, usuario.perfil)) {
+      return { ok: false, error: 'Você não tem permissão para editar esse usuário.' };
+    }
+    if (!novoPerfil) novoPerfil = usuario.perfil;
+    if (novoPerfil !== usuario.perfil && !podeGerenciarPerfil_(sessao.perfil, novoPerfil)) {
+      return { ok: false, error: 'Você não tem permissão para dar esse perfil.' };
+    }
+    if (novoLogin !== loginAlvo && buscarUsuario_(novoLogin)) {
+      return { ok: false, error: 'Já existe um usuário com esse login.' };
+    }
+
+    var sheet = usuariosSheet_();
+    if (novoLogin !== loginAlvo) {
+      sheet.getRange(usuario._row, 1).setValue(novoLogin); // login
+      mudancas.push('login "' + loginAlvo + '" -> "' + novoLogin + '"');
+    }
+    if (novoPerfil !== usuario.perfil) {
+      sheet.getRange(usuario._row, 4).setValue(novoPerfil); // perfil
+      mudancas.push('perfil ' + usuario.perfil + ' -> ' + novoPerfil);
+    }
+    if (novaSenha) {
+      var novoSalt = gerarSalt_();
+      sheet.getRange(usuario._row, 2).setValue(hashSenha_(novaSenha, novoSalt)); // hash_senha
+      sheet.getRange(usuario._row, 3).setValue(novoSalt); // salt
+      mudancas.push('senha redefinida');
+    }
+  } finally {
+    lock.releaseLock();
+  }
+
+  if (!mudancas.length) return { ok: false, error: 'Nada foi alterado.' };
+
+  encerrarSessoesDoUsuario_(loginAlvo);
+  // Senha nova também desfaz o bloqueio por tentativas erradas.
+  if (novaSenha) CacheService.getScriptCache().remove('login_tentativas_' + novoLogin);
+  registrarLog_(sessao.login, sessao.perfil, 'edicao_usuario',
+    'editou "' + loginAlvo + '": ' + mudancas.join('; ') + '; sessões encerradas');
+  return { ok: true, login: novoLogin, mudancas: mudancas };
+}
+
 // Exclusão definitiva. Só é permitida para usuários já desativados — força
 // passar por "Desativar" antes, evitando remover por engano uma conta em uso
 // (a sessão ativa, se houver, já foi encerrada no momento da desativação).
