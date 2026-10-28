@@ -25,7 +25,10 @@ var RTI_HEADERS = [
   // não reordenar planilhas já em produção.
   'possui_caldeira',
   // Sprinklers: pontos sem valor são tratados como "NAO" no front-end.
-  'possui_sprinkler'
+  'possui_sprinkler',
+  // Hidrantes da edificação (item 7.3 do memorial), desde 28/10/2026. Ver
+  // migrarHidrantes_.
+  'hidrantes_edificacao'
 ];
 
 // Quem pode cadastrar RTI. Ver a listagem (handleListarRTIs_) é mais aberto —
@@ -42,13 +45,16 @@ function rtiSheet_() {
   // coluna(s) que faltarem automaticamente, sem afetar os dados já existentes.
   var lastCol = sheet.getLastColumn();
   var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var adicionadas = [];
   RTI_HEADERS.forEach(function (h) {
     if (headers.indexOf(h) === -1) {
       lastCol += 1;
       sheet.getRange(1, lastCol).setValue(h);
       headers.push(h);
+      adicionadas.push(h);
     }
   });
+  if (adicionadas.indexOf('hidrantes_edificacao') !== -1) migrarHidrantes_(sheet, headers);
 
   // Backfill de "id": linhas cadastradas antes dessa coluna existir ficam sem
   // valor. Preenche com um UUID novo na primeira vez que a planilha é aberta
@@ -83,12 +89,35 @@ function normalizarDataCelula_(value) {
   return value;
 }
 
-// Recalque implica fachada (desde 27/10/2026): quem tem hidrante de recalque
-// (externo) tem também o de fachada (interno). Aplicada na leitura para valer
-// também nas linhas gravadas antes da regra.
-function aplicarRegraHidrantes_(point) {
-  if (point.hidrante_recalque === 'SIM') point.hidrante_fachada = 'SIM';
-  return point;
+// Migração de 28/10/2026, feita uma vez, quando a coluna "hidrantes_edificacao"
+// é criada:
+// - recalque e fachada viram um campo só, "Recalque (passeio e/ou fachada)",
+//   gravado em hidrante_recalque (COSCIP, art. 101: a fachada é admitida como
+//   registro de recalque). A coluna hidrante_fachada fica como histórico;
+// - "Hidrantes da edificação" é SIM onde há recalque, por decisão do CAT
+//   Sertão: em Pernambuco os projetos usam hidrante, não mangotinho, e as
+//   ocupações com sprinkler cadastradas até aqui exigem hidrante (art. 105-A).
+function migrarHidrantes_(sheet, headers) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return;
+  var n = lastRow - 1;
+  var colFachada = headers.indexOf('hidrante_fachada') + 1;
+  var colRecalque = headers.indexOf('hidrante_recalque') + 1;
+  var colHidrantes = headers.indexOf('hidrantes_edificacao') + 1;
+  var fachada = sheet.getRange(2, colFachada, n, 1).getValues();
+  var recalque = sheet.getRange(2, colRecalque, n, 1).getValues();
+  var hidrantes = [];
+  var comRecalque = 0;
+  for (var i = 0; i < n; i++) {
+    var tem = recalque[i][0] === 'SIM' || fachada[i][0] === 'SIM';
+    recalque[i][0] = tem ? 'SIM' : 'NAO';
+    hidrantes.push([tem ? 'SIM' : 'NAO']);
+    if (tem) comRecalque++;
+  }
+  sheet.getRange(2, colRecalque, n, 1).setValues(recalque);
+  sheet.getRange(2, colHidrantes, n, 1).setValues(hidrantes);
+  registrarLog_('', '', 'migracao', 'Hidrantes: recalque e fachada unidos em "Recalque (passeio e/ou fachada)"; ' +
+    '"Hidrantes da edificação" = SIM em ' + comRecalque + ' de ' + n + ' ocupações (as que têm recalque).');
 }
 
 function jsonResponse_(obj) {
@@ -129,7 +158,7 @@ function doGet(e) {
       if (headers[c] === 'cadastrado_por') continue;
       point[headers[c]] = headers[c] === 'data_validade_avcb' ? normalizarDataCelula_(row[c]) : row[c];
     }
-    points.push(aplicarRegraHidrantes_(point));
+    points.push(point);
   }
 
   return jsonResponse_({ ok: true, points: points });
@@ -237,11 +266,19 @@ function validarDadosRTI_(body) {
     return { erro: 'Altura da edificação inválida.' };
   }
 
+  // Recalque (passeio e/ou fachada): um campo só desde 28/10/2026 (ver
+  // migrarHidrantes_). O chat do n8n ainda manda recalque e fachada separados,
+  // e não informa os hidrantes da edificação: aí vale a regra da migração.
+  var temRecalque = body.hidrante_recalque === 'SIM' || body.hidrante_fachada === 'SIM';
+  var hidrantes = body.hidrantes_edificacao === 'SIM' || body.hidrantes_edificacao === 'NAO'
+    ? body.hidrantes_edificacao : (temRecalque ? 'SIM' : 'NAO');
+
   return {
     lat: lat, lng: lng, nome: nome, capacidade: capacidade,
-    // Recalque implica fachada (ver aplicarRegraHidrantes_), também no chat do n8n.
-    hidranteFachada: body.hidrante_fachada === 'SIM' || body.hidrante_recalque === 'SIM' ? 'SIM' : 'NAO',
-    hidranteRecalque: body.hidrante_recalque === 'SIM' ? 'SIM' : 'NAO',
+    hidranteRecalque: temRecalque ? 'SIM' : 'NAO',
+    hidrantesEdificacao: hidrantes,
+    // Histórico: só o chat do n8n ainda informa a fachada separada.
+    hidranteFachada: body.hidrante_fachada === 'SIM' || body.hidrante_fachada === 'NAO' ? body.hidrante_fachada : '',
     possuiSprinkler: body.possui_sprinkler === 'SIM' ? 'SIM' : 'NAO',
     possuiCaldeira: body.possui_caldeira === 'SIM' ? 'SIM' : 'NAO',
     rua: rua, numero: numero, bairro: bairro, cidade: cidade,
@@ -286,6 +323,7 @@ function gravarCadastroRTI_(body, d, sessao) {
       case 'capacidade_litros': return d.capacidade;
       case 'hidrante_fachada': return d.hidranteFachada;
       case 'hidrante_recalque': return d.hidranteRecalque;
+      case 'hidrantes_edificacao': return d.hidrantesEdificacao;
       case 'possui_sprinkler': return d.possuiSprinkler;
       case 'endereco': return d.endereco;
       case 'possui_avcb': return d.possuiAvcb;
@@ -331,7 +369,7 @@ function handleListarRTIs_(body) {
     for (var c = 0; c < headers.length; c++) {
       point[headers[c]] = headers[c] === 'data_validade_avcb' ? normalizarDataCelula_(row[c]) : row[c];
     }
-    pontos.push(aplicarRegraHidrantes_(point));
+    pontos.push(point);
   }
 
   return { ok: true, points: pontos };
@@ -388,8 +426,10 @@ function gravarEdicaoRTI_(id, d, sessao) {
       case 'lng': return d.lng;
       case 'nome': return d.nome;
       case 'capacidade_litros': return d.capacidade;
-      case 'hidrante_fachada': return d.hidranteFachada;
+      // O site não manda mais a fachada separada: mantém o histórico da linha.
+      case 'hidrante_fachada': return d.hidranteFachada || achado.valores.hidrante_fachada;
       case 'hidrante_recalque': return d.hidranteRecalque;
+      case 'hidrantes_edificacao': return d.hidrantesEdificacao;
       case 'possui_sprinkler': return d.possuiSprinkler;
       case 'endereco': return d.endereco;
       case 'rua': return d.rua;

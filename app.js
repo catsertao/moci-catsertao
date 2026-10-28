@@ -137,8 +137,8 @@ function enderecoDisplay(point) {
 }
 
 function buildPopupHtml(point, session) {
-  const fachadaYes = point.hidrante_fachada === 'SIM';
   const recalqueYes = point.hidrante_recalque === 'SIM';
+  const hidrantesYes = point.hidrantes_edificacao === 'SIM';
   const sprinklerYes = point.possui_sprinkler === 'SIM';
   const caldeiraYes = point.possui_caldeira === 'SIM';
   const avcb = getAvcbStatus(point);
@@ -166,8 +166,8 @@ function buildPopupHtml(point, session) {
       '<div class="row"><span class="label">Capacidade:</span><span>' + escapeHtml(point.capacidade_litros) + ' L</span></div>' +
       detalhesHtml +
       '<div class="chips">' +
-        '<span class="chip' + (fachadaYes ? ' yes' : '') + '">Hidrante de fachada (interno): ' + (fachadaYes ? 'SIM' : 'NÃO') + '</span>' +
-        '<span class="chip' + (recalqueYes ? ' yes' : '') + '">Hidrante de recalque (externo): ' + (recalqueYes ? 'SIM' : 'NÃO') + '</span>' +
+        '<span class="chip' + (recalqueYes ? ' yes' : '') + '">Recalque (passeio e/ou fachada): ' + (recalqueYes ? 'SIM' : 'NÃO') + '</span>' +
+        '<span class="chip' + (hidrantesYes ? ' yes' : '') + '">Hidrantes da edificação: ' + (hidrantesYes ? 'SIM' : 'NÃO') + '</span>' +
         '<span class="chip' + (sprinklerYes ? ' yes' : '') + '">Sprinklers: ' + (sprinklerYes ? 'SIM' : 'NÃO') + '</span>' +
         '<span class="chip' + (caldeiraYes ? ' yes' : '') + '">Caldeira: ' + (caldeiraYes ? 'SIM' : 'NÃO') + '</span>' +
         '<span class="chip' + (avcb.valido ? ' yes' : '') + '">AVCB: ' + escapeHtml(avcb.label) + '</span>' +
@@ -184,9 +184,10 @@ function normalizePoint(raw) {
     lng: parseFloat(raw.lng),
     nome: raw.nome || '',
     capacidade_litros: raw.capacidade_litros || 0,
-    // Recalque implica fachada (desde 27/10/2026), também nos cadastros antigos.
-    hidrante_fachada: raw.hidrante_fachada === 'SIM' || raw.hidrante_recalque === 'SIM' ? 'SIM' : 'NAO',
+    // Recalque (passeio e/ou fachada) e hidrantes da edificação, desde
+    // 28/10/2026. "hidrante_fachada" ficou só como histórico na planilha.
     hidrante_recalque: raw.hidrante_recalque === 'SIM' ? 'SIM' : 'NAO',
+    hidrantes_edificacao: raw.hidrantes_edificacao === 'SIM' ? 'SIM' : 'NAO',
     // Pontos cadastrados antes desse campo existir vêm sem "possui_sprinkler"
     // (raw.possui_sprinkler === undefined): tratados como "NAO" até edição
     // manual, já que não há como inferir esse dado do cadastro antigo
@@ -679,16 +680,8 @@ function wireCadastroModal() {
   inputRazao.addEventListener('input', atualizarNome);
   checkMesmoNome.addEventListener('change', atualizarNome);
 
-  // ----- Hidrantes: recalque (externo) implica fachada (interno), desde 27/10/2026 -----
-  const checkFachada = document.getElementById('check-fachada');
   const checkRecalque = document.getElementById('check-recalque');
-
-  // Marcar o recalque marca a fachada e a trava até o recalque ser desmarcado.
-  function atualizarHidrantes() {
-    checkFachada.disabled = checkRecalque.checked;
-    if (checkRecalque.checked) checkFachada.checked = true;
-  }
-  checkRecalque.addEventListener('change', atualizarHidrantes);
+  const checkHidrantes = document.getElementById('check-hidrantes');
   let mapaDoc = null, marcadorDoc = null, camadaRuaDoc = null, camadaSatDoc = null, sateliteDoc = false;
 
   function rolarModalParaTopo() {
@@ -751,7 +744,6 @@ function wireCadastroModal() {
   function limparCadastro() {
     form.reset();
     atualizarNome();
-    atualizarHidrantes();
     hide(campoDataAvcb);
     leituraFeita = false;
     leituraMemorial = null;
@@ -927,9 +919,9 @@ function wireCadastroModal() {
     atualizarNome();
     leituraMemorial = res.memorial || null;
     document.getElementById('input-capacidade').value = d.capacidade_litros !== '' && d.capacidade_litros != null ? d.capacidade_litros : '';
-    checkFachada.checked = d.hidrante_fachada === 'SIM';
-    checkRecalque.checked = d.hidrante_recalque === 'SIM';
-    atualizarHidrantes();
+    // A leitura ainda separa recalque (7.1.1) e fachada (7.1.2): os dois são o recalque.
+    checkRecalque.checked = d.hidrante_recalque === 'SIM' || d.hidrante_fachada === 'SIM';
+    checkHidrantes.checked = d.hidrantes_edificacao === 'SIM';
     document.getElementById('check-sprinkler').checked = d.possui_sprinkler === 'SIM';
     document.getElementById('check-caldeira').checked = d.possui_caldeira === 'SIM';
     checkAvcb.checked = d.possui_avcb === 'SIM';
@@ -994,9 +986,8 @@ function wireCadastroModal() {
     checkMesmoNome.checked = !partes.fantasia && !!partes.razao;
     atualizarNome();
     document.getElementById('input-capacidade').value = point.capacidade_litros || '';
-    checkFachada.checked = point.hidrante_fachada === 'SIM';
     checkRecalque.checked = point.hidrante_recalque === 'SIM';
-    atualizarHidrantes();
+    checkHidrantes.checked = point.hidrantes_edificacao === 'SIM';
     document.getElementById('check-sprinkler').checked = point.possui_sprinkler === 'SIM';
     document.getElementById('check-caldeira').checked = point.possui_caldeira === 'SIM';
     checkAvcb.checked = point.possui_avcb === 'SIM';
@@ -1066,8 +1057,8 @@ function wireCadastroModal() {
       document.getElementById('input-pavimentos').value ||
       document.getElementById('input-area').value ||
       document.getElementById('input-altura').value ||
-      document.getElementById('check-fachada').checked ||
-      document.getElementById('check-recalque').checked ||
+      checkRecalque.checked ||
+      checkHidrantes.checked ||
       document.getElementById('check-sprinkler').checked ||
       document.getElementById('check-caldeira').checked ||
       checkAvcb.checked
@@ -1167,26 +1158,24 @@ function wireCadastroModal() {
 
     // Coerência com o COSCIP. Pede confirmação em vez de bloquear, porque um
     // prédio irregular pode mesmo não ter a ligação. Toda RTI serve a um
-    // sistema fixo, e todo sistema fixo tem registro de recalque ou hidrante de
-    // fachada (arts. 100 e 101); hidrante e chuveiros automáticos sempre têm RTI (art. 57).
+    // sistema fixo, e todo sistema fixo tem recalque, no passeio ou na fachada
+    // (arts. 100 e 101); hidrante e chuveiros automáticos sempre têm RTI (art. 57).
     const temRecalque = checkRecalque.checked;
-    const temFachada = checkFachada.checked || temRecalque;
+    const temHidrantes = checkHidrantes.checked;
     const temSprinkler = document.getElementById('check-sprinkler').checked;
     const rtiLitros = Number(capacidade);
 
     // Cadastro pela leitura do memorial: mudar o que o memorial informa pede
-    // confirmação. Evita, por exemplo, marcar "fachada" quando o memorial não tem
-    // fachada nem recalque (item 7.1). Recalque presumido pelo sistema não conta
-    // como memorial. Recalque no memorial (7.1.1) vale como fachada (7.1.2).
+    // confirmação. Recalque presumido pelo sistema não conta como memorial.
     if (locMode === 'documentos' && leituraMemorial && !editingId) {
       const m = leituraMemorial, difs = [];
       const simNao = function (b) { return b ? 'SIM' : 'NÃO'; };
       const litros = function (n) { return Number(n).toLocaleString('pt-BR') + ' L'; };
-      const mFachada = m.hidrante_recalque === 'SIM' ? 'SIM' : m.hidrante_fachada;
-      if (temFachada && !temRecalque && mFachada !== 'SIM') difs.push('Hidrante de fachada (interno): o memorial ' + (mFachada === 'NAO' ? 'diz NÃO' : 'não indica') + ' (item 7.1.2), e você marcou.');
-      if (!temFachada && mFachada === 'SIM') difs.push('Hidrante de fachada (interno): o memorial ' + (m.hidrante_fachada === 'SIM' ? 'diz SIM (item 7.1.2)' : 'tem recalque (item 7.1.1)') + ', e você desmarcou.');
-      if (temRecalque && m.hidrante_recalque === 'NAO') difs.push('Hidrante de recalque (externo): o memorial diz NÃO (item 7.1.1), e você marcou.');
-      if (!temRecalque && m.hidrante_recalque === 'SIM') difs.push('Hidrante de recalque (externo): o memorial diz SIM (item 7.1.1), e você desmarcou.');
+      // Recalque no memorial: 7.1.1 (passeio) ou 7.1.2 (fachada). "NÃO" só se os dois disserem não.
+      const mRecalque = m.hidrante_recalque === 'SIM' || m.hidrante_fachada === 'SIM' ? 'SIM'
+        : (m.hidrante_recalque === 'NAO' && m.hidrante_fachada === 'NAO' ? 'NAO' : '');
+      if (mRecalque && simNao(temRecalque) !== simNao(mRecalque === 'SIM')) difs.push('Recalque (passeio e/ou fachada): o memorial diz ' + simNao(mRecalque === 'SIM') + ' (itens 7.1.1 e 7.1.2), e você marcou ' + simNao(temRecalque) + '.');
+      if ((m.hidrantes_edificacao === 'SIM' || m.hidrantes_edificacao === 'NAO') && simNao(temHidrantes) !== simNao(m.hidrantes_edificacao === 'SIM')) difs.push('Hidrantes da edificação: o memorial diz ' + simNao(m.hidrantes_edificacao === 'SIM') + ' (item 7.3), e você marcou ' + simNao(temHidrantes) + '.');
       if ((m.possui_sprinkler === 'SIM' || m.possui_sprinkler === 'NAO') && simNao(temSprinkler) !== simNao(m.possui_sprinkler === 'SIM')) difs.push('Sprinklers: o memorial diz ' + simNao(m.possui_sprinkler === 'SIM') + ' (seção 8), e você marcou ' + simNao(temSprinkler) + '.');
       if (typeof m.capacidade_litros === 'number' && m.capacidade_litros !== rtiLitros) difs.push('Capacidade da RTI: o memorial soma ' + litros(m.capacidade_litros) + ', e você informou ' + litros(rtiLitros) + '.');
       if (difs.length && !window.confirm('Você alterou dados que vieram do memorial:\n\n• ' + difs.join('\n• ') +
@@ -1195,16 +1184,15 @@ function wireCadastroModal() {
       }
     }
 
-    if (rtiLitros > 0 && !temFachada && !temRecalque && !window.confirm(
-      'Este cadastro tem RTI de ' + rtiLitros.toLocaleString('pt-BR') + ' L, mas nenhum hidrante marcado.\n\n' +
-      'Pelo COSCIP (arts. 100 e 101), toda edificação com RTI tem hidrante de recalque (externo) ' +
-      'ou hidrante de fachada (interno).\n\n' +
-      'Clique em OK para salvar assim mesmo, ou em Cancelar para marcar o hidrante.')) {
-      document.getElementById('check-recalque').focus();
+    if (rtiLitros > 0 && !temRecalque && !window.confirm(
+      'Este cadastro tem RTI de ' + rtiLitros.toLocaleString('pt-BR') + ' L, mas o recalque não está marcado.\n\n' +
+      'Pelo COSCIP (arts. 100 e 101), toda edificação com RTI tem recalque, no passeio ou na fachada.\n\n' +
+      'Clique em OK para salvar assim mesmo, ou em Cancelar para marcar o recalque.')) {
+      checkRecalque.focus();
       return;
     }
-    if ((temSprinkler || temFachada || temRecalque) && rtiLitros === 0 && !window.confirm(
-      (temSprinkler ? 'Sprinklers marcados' : 'Hidrante marcado') + ', mas a RTI está em 0 L.\n\n' +
+    if ((temSprinkler || temHidrantes || temRecalque) && rtiLitros === 0 && !window.confirm(
+      (temSprinkler ? 'Sprinklers marcados' : temHidrantes ? 'Hidrantes marcados' : 'Recalque marcado') + ', mas a RTI está em 0 L.\n\n' +
       'Pelo COSCIP (art. 57), todo sistema de hidrantes, mangotinhos ou chuveiros automáticos tem reserva técnica de incêndio.\n\n' +
       'Clique em OK para salvar assim mesmo, ou em Cancelar para informar a capacidade.')) {
       document.getElementById('input-capacidade').focus();
@@ -1217,8 +1205,8 @@ function wireCadastroModal() {
       lng: currentCapture.lng,
       nome: nome,
       capacidade_litros: rtiLitros,
-      hidrante_fachada: temFachada ? 'SIM' : 'NAO',
       hidrante_recalque: temRecalque ? 'SIM' : 'NAO',
+      hidrantes_edificacao: temHidrantes ? 'SIM' : 'NAO',
       possui_sprinkler: temSprinkler ? 'SIM' : 'NAO',
       possui_caldeira: document.getElementById('check-caldeira').checked ? 'SIM' : 'NAO',
       rua: rua,

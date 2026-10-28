@@ -101,7 +101,7 @@ O cadastro tem:
 - nome;
 - endereço (rua, número ou "NI", bairro, cidade);
 - capacidade da RTI (litros);
-- hidrante de fachada (interno) e de recalque (externo);
+- recalque (passeio e/ou fachada) e hidrantes da edificação;
 - sprinklers e caldeira;
 - AVCB com data de validade;
 - pavimentos, área construída e altura (opcionais).
@@ -155,19 +155,49 @@ Outras regras do fluxo:
 - **Origens aceitas pelo webhook:** `https://catsertao.github.io`, mais o
   servidor local de testes `http://127.0.0.1:8765`.
 
-#### Hidrante, RTI e sprinkler: regras do COSCIP (desde 20/10/2026)
+#### Recalque, hidrantes, RTI e sprinkler: regras do COSCIP (desde 28/10/2026)
 
-Os dois campos de hidrante do MOCI aparecem no site como **hidrante de
-fachada (interno)** e **hidrante de recalque (externo)**: o parêntese é para
-quem cadastra e para quem lê. São as duas formas da tomada de água do Corpo de
-Bombeiros (COSCIP, art. 102).
+O MOCI tem dois campos:
+
+- **Recalque (passeio e/ou fachada):** a ligação da viatura, para pressurizar
+  a rede do prédio ou tirar água da RTI (COSCIP, art. 100, §1º). Pode ser o
+  registro de recalque, no passeio, ou o hidrante de fachada, na parede ou no
+  muro: o art. 101 admite a fachada "como registro de recalque", e o art. 102,
+  §2º, proíbe válvula de retenção nos dois, para a água passar nos dois
+  sentidos. Para a guarnição, o lugar exato não importa: ela procura do lado
+  de fora. Até 27/10/2026 eram dois campos; a coluna `hidrante_fachada` da
+  planilha ficou como histórico.
+- **Hidrantes da edificação:** a rede de hidrantes do prédio, item 7.3 do
+  memorial. Inclui hidrantes internos e externos no sentido do art. 48
+  (dentro ou fora da projeção do prédio). O memorial não separa os dois.
+
+Os nomes "hidrante interno" e "hidrante externo" ficaram de fora de propósito:
+no art. 48, "externo" é um hidrante da rede instalado fora do prédio (por
+exemplo, de coluna, no pátio), não o recalque.
 
 | Situação | Regra | Base |
 |---|---|---|
-| Há RTI ou sistema fixo (hidrante, mangotinho ou chuveiros) | Existe recalque **ou** fachada | COSCIP, arts. 45, 100, 101, 120 e 128 |
-| Recalque × fachada | **Recalque implica fachada.** A fachada pode existir sozinha | Decisão do CAT Sertão, 27/10/2026 |
+| Há RTI ou sistema fixo (hidrante, mangotinho ou chuveiros) | Existe recalque, no passeio ou na fachada | COSCIP, arts. 66, 100, 101, 120 e 128 |
+| Recalque × hidrantes | Recalque **não** implica hidrantes pela norma: o sistema fixo pode ser só de chuveiros (art. 57, §3º) ou só de mangotinhos | Arts. 100, 105-A e 132-A |
 | RTI × hidrante | RTI **não** implica hidrante: pode servir só a chuveiros automáticos ou a mangotinhos | Arts. 57, §3º, e 105-A |
 | Hidrante, mangotinho ou sprinkler | Sempre há RTI | Arts. 53, §2º, 57 e 112, §2º |
+
+Pela tabela atual, o sprinkler sem hidrante acontece, por exemplo, no Tipo H
+com 3 ou 4 pavimentos, até 930 m² e até 14 m (art. 132-A exige chuveiros
+acima de 2 pavimentos; o art. 105-A só exige hidrante acima de 4 pavimentos,
+14 m ou 930 m²), e nas garagens internas do art. 132-A, §4º.
+
+**Migração de 28/10/2026** (`migrarHidrantes_`, em `Code.gs`, feita uma vez):
+
+- recalque "SIM" onde havia recalque ou fachada;
+- "Hidrantes da edificação" = "SIM" onde há recalque. É decisão do CAT
+  Sertão: em Pernambuco os projetos usam hidrante, não mangotinho, e as 18
+  ocupações com sprinkler cadastradas até então passam de 930 m² ou de 4
+  pavimentos, o que exige hidrante pelo art. 105-A.
+
+A migração ficou registrada no LOG como "Migração". Dali em diante, o campo
+vem do memorial (item 7.3) ou de quem cadastra. O chat do n8n não informa
+hidrantes: nele, vale a mesma regra da migração.
 
 Como o sistema aplica essas regras:
 
@@ -180,23 +210,16 @@ Como o sistema aplica essas regras:
 
   As regras ficam no código do nó "Montar resposta", não na IA:
   - o código **soma a RTI** (m³ → litros);
+  - recalque (7.1.1) ou fachada (7.1.2) "Sim" marca o **Recalque** no
+    formulário, e o item 7.3 marca **Hidrantes da edificação**;
   - se há RTI ou sistema fixo e o memorial não diz qual ligação existe, o
-    código **marca recalque** (a regra do art. 100) e avisa para conferir. A
-    "Localização" desempata: "parede" ou "muro" marca fachada;
+    código **marca o recalque** (a regra do art. 100) e avisa para conferir;
   - avisa quando há sistema fixo sem volume de RTI e quando a soma fica fora
     de 3.600 a 1.000.000 L (provável erro de unidade).
-- **Recalque implica fachada (desde 27/10/2026):**
-  - no formulário, marcar o recalque marca a fachada e a trava até o recalque
-    ser desmarcado;
-  - o backend grava fachada "SIM" sempre que o recalque é "SIM", também nos
-    cadastros do chat do n8n;
-  - na leitura (mapa, lista, exportação e `listarRTIs`), as linhas antigas com
-    recalque aparecem com fachada. A planilha não foi alterada: a célula
-    antiga só muda quando a ocupação é editada.
 - **Formulário (todas as abas e a edição):** pede confirmação antes de salvar
   em dois casos:
-  - RTI sem nenhum hidrante marcado;
-  - hidrante ou sprinkler marcado com RTI 0.
+  - RTI sem recalque marcado;
+  - recalque, hidrantes ou sprinkler marcado com RTI 0.
 
   A confirmação cita o artigo, e o prédio irregular continua cadastrável.
 - **Chat do n8n** ("OCI - Diálogo de Cadastro" e "OCI - Nova Planilha"): faz
@@ -221,14 +244,13 @@ Como o sistema aplica essas regras:
   O memorial do SACBM só tem a razão social (item 2.2).
 - **Proteção:** no cadastro pela aba Documentos, mudar o que o memorial informa
   pede confirmação ao salvar, mostrando o que o memorial diz. Vale para:
-  - hidrante de recalque (externo) (item 7.1.1);
-  - hidrante de fachada (interno) (item 7.1.2);
+  - recalque (itens 7.1.1 e 7.1.2: "NÃO" só quando os dois dizem não);
+  - hidrantes da edificação (item 7.3);
   - sprinklers (seção 8);
   - capacidade da RTI.
 
   O recalque marcado pelo sistema por presunção não conta como dado do
-  memorial. Recalque no memorial (item 7.1.1) vale como fachada, pela regra
-  de 27/10/2026.
+  memorial.
 - **Seção 9 do memorial:** as opções 9.1.1 (hidrantes e chuveiros), 9.1.2 (só
   hidrantes) e 9.1.3 (só chuveiros) se excluem, e só uma marcada "Sim" é normal.
   A IA foi instruída a não apontar isso como conflito, e observações sobre a

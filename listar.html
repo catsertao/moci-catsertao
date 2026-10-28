@@ -178,8 +178,8 @@
 
   function listaHidrantes(p) {
     var itens = [];
-    if (p.hidrante_fachada === 'SIM') itens.push('Fachada (interno)');
-    if (p.hidrante_recalque === 'SIM') itens.push('Recalque (externo)');
+    if (p.hidrante_recalque === 'SIM') itens.push('Recalque');
+    if (p.hidrantes_edificacao === 'SIM') itens.push('Hidrantes da edificação');
     return itens.length ? itens.join(', ') : '—';
   }
 
@@ -241,7 +241,7 @@
     elResumo.textContent = 'Mostrando ' + visiveis.length + ' de ' + totalTxt + distTxt + '.';
 
     var thead = '<thead><tr>' +
-      '<th>Nome</th><th>Endereço</th><th>Distância</th><th>Dist. Quartel mais próx.</th><th>Quartel</th><th>Capacidade RTI</th><th>Hidrantes</th><th>Sprinklers</th><th>Caldeira</th><th>AVCB</th>' +
+      '<th>Nome</th><th>Endereço</th><th>Distância</th><th>Dist. Quartel mais próx.</th><th>Quartel</th><th>Capacidade RTI</th><th>Recalque e hidrantes</th><th>Sprinklers</th><th>Caldeira</th><th>AVCB</th>' +
       (mostrarCadastrado ? '<th>Cadastrado por</th>' : '') +
       (mostrarEditar ? '<th></th><th></th>' : '') +
       '</tr></thead>';
@@ -356,8 +356,8 @@
         'Latitude': p.lat,
         'Longitude': p.lng,
         'Capacidade RTI (L)': p.capacidade_litros,
-        'Hidrante de fachada (interno)': p.hidrante_fachada === 'SIM' ? 'Sim' : 'Não',
-        'Hidrante de recalque (externo)': p.hidrante_recalque === 'SIM' ? 'Sim' : 'Não',
+        'Recalque (passeio e/ou fachada)': p.hidrante_recalque === 'SIM' ? 'Sim' : 'Não',
+        'Hidrantes da edificação': p.hidrantes_edificacao === 'SIM' ? 'Sim' : 'Não',
         'Possui sprinklers': p.possui_sprinkler === 'SIM' ? 'Sim' : 'Não',
         'Possui caldeira': p.possui_caldeira === 'SIM' ? 'Sim' : 'Não',
         'Possui AVCB': p.possui_avcb === 'SIM' ? 'Sim' : 'Não',
