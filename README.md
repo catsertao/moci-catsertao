@@ -196,8 +196,9 @@ acima de 2 pavimentos; o art. 105-A só exige hidrante acima de 4 pavimentos,
   pavimentos, o que exige hidrante pelo art. 105-A.
 
 A migração ficou registrada no LOG como "Migração". Dali em diante, o campo
-vem do memorial (item 7.3) ou de quem cadastra. O chat do n8n não informa
-hidrantes: nele, vale a mesma regra da migração.
+vem do memorial (item 7.3) ou de quem cadastra. Se algum cadastro chegar sem
+essa informação (os chats antigos do n8n não a enviam), o backend aplica a
+mesma regra da migração.
 
 Como o sistema aplica essas regras:
 
@@ -222,9 +223,8 @@ Como o sistema aplica essas regras:
   - recalque, hidrantes ou sprinkler marcado com RTI 0.
 
   A confirmação cita o artigo, e o prédio irregular continua cadastrável.
-- **Chat do n8n** ("OCI - Diálogo de Cadastro" e "OCI - Nova Planilha"): faz
-  as mesmas duas perguntas de coerência, e a resposta repetida vale como
-  confirmação.
+- **Chats do n8n** ("OCI - Diálogo de Cadastro" e "OCI - Nova Planilha"):
+  **desativados em 28/10/2026** (ver Integrações).
 
 #### Nome fantasia, proteção do memorial e seção 9 (desde 20/10/2026)
 
@@ -292,6 +292,19 @@ O chat de cadastro por memorial (n8n) usa as ações `login`, `listarRTIs` e
 `cadastrarRTI` da API, com um usuário próprio de serviço. Os nomes internos
 "RTI" (aba, ações e funções) foram mantidos de propósito por causa dessa
 integração.
+
+Os dois fluxos do chat ("OCI - Diálogo de Cadastro" e "OCI - Nova Planilha")
+foram **desativados no n8n em 28/10/2026**:
+
+- **Motivo:** não tinham uso desde 20/10, porque a aba "Documentos" do site
+  faz o mesmo trabalho com mais controle. Além disso, as perguntas deles
+  ainda separavam fachada e recalque.
+- **O que continua:** os fluxos seguem guardados no n8n. O backend continua
+  aceitando o formato deles: fachada conta como recalque, e sem a informação
+  de hidrantes vale a regra da migração.
+- **Para reativar:** basta ligar o fluxo no n8n. Antes, convém atualizar as
+  perguntas para "Recalque (passeio e/ou fachada)" e "Hidrantes da
+  edificação".
 
 ## Testar localmente
 
