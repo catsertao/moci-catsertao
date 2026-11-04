@@ -72,7 +72,7 @@
   <div class="bottom-inner">
     <img src="CAT-SERTAO-SEM-FUNDO.png" alt="">
     <div class="bottom-text">
-      <strong>Site em desenvolvimento</strong> — desenvolvido pelo CAT Sertão – Centro de Atividades Técnicas do Sertão
+      <strong>OCIs cadastradas até o momento: <span id="contagem-ocis">…</span></strong> — desenvolvido pelo CAT Sertão – Centro de Atividades Técnicas do Sertão
     </div>
   </div>
 </footer>
@@ -381,6 +381,9 @@
 
   function renderizar() {
     var session = getSession();
+    // Rodapé: total cadastrado (não só o que passou no filtro).
+    var elContagem = document.getElementById('contagem-ocis');
+    if (elContagem) elContagem.textContent = todosOsPontos.length.toLocaleString('pt-BR');
     // Exportar para Excel continua só para quem entrou.
     if (podeVisualizarLista(session)) show(elBtnExportar); else hide(elBtnExportar);
 

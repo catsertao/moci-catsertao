@@ -369,6 +369,13 @@ function postApi(payload) {
 let markersById = {};
 let pontosPorId = {}; // pontos já no mapa — usado para avisar de cadastro duplicado (aba Documentos)
 
+// Rodapé: total de ocupações cadastradas (as que vieram do servidor e as salvas
+// nesta tela). Sem resposta do servidor, fica "…".
+function atualizarContagemOcis() {
+  const el = document.getElementById('contagem-ocis');
+  if (el) el.textContent = Object.keys(pontosPorId).length.toLocaleString('pt-BR');
+}
+
 function loadPoints() {
   markersById = {};
   pontosPorId = {};
@@ -381,6 +388,7 @@ function loadPoints() {
           markersById[p.id] = mapAdapter.addMarker(p);
           pontosPorId[p.id] = p;
         });
+        atualizarContagemOcis();
       })
       .catch(function () { /* mapa continua utilizável mesmo sem pontos */ });
   } else {
@@ -390,6 +398,7 @@ function loadPoints() {
       markersById[p.id] = mapAdapter.addMarker(p);
       pontosPorId[p.id] = p;
     });
+    atualizarContagemOcis();
   }
 }
 
@@ -1242,6 +1251,7 @@ function wireCadastroModal() {
         }
         markersById[pontoFinal.id] = mapAdapter.addMarker(pontoFinal);
         pontosPorId[pontoFinal.id] = pontoFinal;
+        atualizarContagemOcis();
         closeModal();
       })
       .catch(function (err) {
