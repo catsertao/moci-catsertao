@@ -1,0 +1,23 @@
+{
+  "name": "MOCI — Mapa de Ocupações Contra Incêndio",
+  "short_name": "MOCI",
+  "description": "Mapa de Ocupações Contra Incêndio do CAT Sertão (CBMPE): RTI, hidrantes, AVCB e cadastro de OCI pelos vistoriadores.",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#14204A",
+  "theme_color": "#14204A",
+  "lang": "pt-BR",
+  "categories": ["utilities", "productivity"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Mapa", "url": "./index.html", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] },
+    { "name": "Listar OCIs", "url": "./listar.html", "icons": [{ "src": "icon-192.png", "sizes": "192x192" }] }
+  ]
+}

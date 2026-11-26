@@ -253,3 +253,11 @@
     escapar: escapar
   };
 })(window);
+
+// App instalável (PWA): registra o service worker em todas as páginas, já que
+// todas carregam este arquivo. Falha no registro não afeta o uso do site.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {});
+  });
+}
